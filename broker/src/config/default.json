@@ -1,0 +1,19 @@
+{
+  "broker": {
+    "port": 9092,
+    "host": "0.0.0.0",
+    "dataDir": "./data"
+  },
+  "log": {
+    "maxSegmentSize": 67108864,
+    "syncInterval": 1000
+  },
+  "controller": {
+    "host": "localhost",
+    "port": 8080
+  },
+  "heartbeat": {
+    "interval": 5000,
+    "timeout": 15000
+  }
+}
