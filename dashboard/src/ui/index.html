@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Distributed Event Stream - Cluster Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/dashboard.css">
+</head>
+<body>
+  <header class="navbar">
+    <div class="navbar-title">Distributed Event Stream</div>
+    <div class="navbar-subtitle">Cluster Dashboard</div>
+  </header>
+
+  <main class="container">
+    <section class="panel">
+      <h2>Cluster Health</h2>
+      <div id="health-status" class="health health-unknown">Unknown</div>
+      <div class="kv-row"><span>Quorum:</span><span id="health-quorum">-</span></div>
+      <div class="kv-row"><span>Alive Nodes:</span><span id="health-alive-nodes">-</span></div>
+      <div class="kv-row"><span>Leader:</span><span id="health-leader">-</span></div>
+      <div class="kv-row"><span>Uptime:</span><span id="health-uptime">-</span></div>
+    </section>
+
+    <section class="panel">
+      <h2>Nodes</h2>
+      <table class="table" id="nodes-table">
+        <thead>
+          <tr>
+            <th>Node ID</th>
+            <th>State</th>
+            <th>Role</th>
+            <th>Last Heartbeat</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="panel">
+      <h2>Topics</h2>
+      <table class="table" id="topics-table">
+        <thead>
+          <tr>
+            <th>Topic</th>
+            <th>Leader</th>
+            <th>Followers</th>
+            <th>ISR</th>
+            <th>Messages</th>
+            <th>Latest Offset</th>
+            <th>Under Replicated</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="panel">
+      <h2>Selected Topic Lag</h2>
+      <div class="kv-row">
+        <label for="topic-select">Topic:</label>
+        <select id="topic-select"></select>
+      </div>
+      <table class="table" id="topic-lag-table">
+        <thead>
+          <tr>
+            <th>Follower Node</th>
+            <th>State</th>
+            <th>Offset</th>
+            <th>Leader Offset</th>
+            <th>Lag (ms)</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span id="last-refresh">Last refresh: -</span>
+  </footer>
+
+  <script src="/metrics.js"></script>
+</body>
+</html>

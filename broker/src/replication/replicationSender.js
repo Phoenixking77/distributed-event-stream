@@ -1,0 +1,426 @@
+'use strict';
+
+const net = require('net');
+const { Logger } = require('../../../shared/utils/logger');
+const { encodePacket } = require('../../../shared/protocol/codec');
+const { OPCODES } = require('../../../shared/protocol/packetTypes');
+const {
+  REPLICATION_TYPES,
+  ISR_CONFIG,
+  createReplicationMessage
+} = require('../../../shared/protocol/clusterTypes');
+
+/**
+ * ReplicationSender manages log replication from leader to followers.
+ * Implements:
+ * - Batched log entry transmission
+ * - Acknowledgment tracking
+ * - ISR (In-Sync Replica) management
+ * - Replication lag monitoring
+ * - Follower connection management
+ */
+class ReplicationSender {
+  constructor(options) {
+    const opts = options || {};
+    this.logger = opts.logger || new Logger({ name: 'replicationSender' });
+    
+    this.brokerId = opts.brokerId;
+    if (!this.brokerId) {
+      throw new Error('brokerId required');
+    }
+
+    // Replication configuration
+    this.batchSize = opts.batchSize || 100;
+    this.batchTimeoutMs = opts.batchTimeoutMs || 50;
+    this.replicationTimeout = opts.replicationTimeout || ISR_CONFIG.REPLICATION_TIMEOUT;
+    this.maxLagMs = opts.maxLagMs || ISR_CONFIG.MAX_LAG_MS;
+
+    // Follower connections: followerId -> { socket, host, port, connected }
+    this.followers = new Map();
+
+    // Replication state per topic: topicName -> { nextOffset, pendingAcks, lastSent }
+    this.topicState = new Map();
+
+    // Replication queue: topicName -> [entries]
+    this.replicationQueue = new Map();
+
+    // Flush timers per topic
+    this.flushTimers = new Map();
+
+    this.closed = false;
+
+    this.stats = {
+      totalBytesSent: 0,
+      totalEntriesSent: 0,
+      totalAcksReceived: 0,
+      replicationErrors: 0
+    };
+  }
+
+  /**
+   * Add follower for replication
+   */
+  addFollower(followerId, host, port) {
+    if (this.followers.has(followerId)) {
+      this.logger.debug('Follower already registered', { followerId });
+      return;
+    }
+
+    const follower = {
+      followerId,
+      host,
+      port,
+      socket: null,
+      connected: false,
+      lastAckTime: Date.now(),
+      lastAckOffset: 0,
+      replicationLag: 0
+    };
+
+    this.followers.set(followerId, follower);
+    this.logger.info('Follower registered for replication', { followerId, host, port });
+
+    this._connectFollower(followerId);
+  }
+
+  /**
+   * Remove follower
+   */
+  removeFollower(followerId) {
+    const follower = this.followers.get(followerId);
+    if (!follower) {
+      return;
+    }
+
+    this.logger.info('Removing follower', { followerId });
+
+    if (follower.socket) {
+      follower.socket.destroy();
+    }
+
+    this.followers.delete(followerId);
+  }
+
+  /**
+   * Connect to follower node
+   */
+  _connectFollower(followerId) {
+    const follower = this.followers.get(followerId);
+    if (!follower || follower.connected) {
+      return;
+    }
+
+    this.logger.debug('Connecting to follower', {
+      followerId,
+      host: follower.host,
+      port: follower.port
+    });
+
+    const socket = net.createConnection({
+      host: follower.host,
+      port: follower.port
+    });
+
+    socket.on('connect', () => {
+      this.logger.info('Connected to follower', { followerId });
+      follower.connected = true;
+      follower.socket = socket;
+    });
+
+    socket.on('error', (err) => {
+      this.logger.error('Follower socket error', {
+        followerId,
+        error: err.message
+      });
+      follower.connected = false;
+      this.stats.replicationErrors += 1;
+      this._scheduleReconnect(followerId);
+    });
+
+    socket.on('close', () => {
+      this.logger.warn('Follower connection closed', { followerId });
+      follower.connected = false;
+      follower.socket = null;
+      this._scheduleReconnect(followerId);
+    });
+
+    socket.on('data', (data) => {
+      this._handleFollowerResponse(followerId, data);
+    });
+
+    follower.socket = socket;
+  }
+
+  /**
+   * Schedule reconnection attempt
+   */
+  _scheduleReconnect(followerId) {
+    if (this.closed) {
+      return;
+    }
+
+    setTimeout(() => {
+      if (this.followers.has(followerId)) {
+        this._connectFollower(followerId);
+      }
+    }, 5000);
+  }
+
+  /**
+   * Handle response from follower (ACK)
+   */
+  _handleFollowerResponse(followerId, data) {
+    try {
+      const response = JSON.parse(data.toString('utf8'));
+      
+      if (response.type === REPLICATION_TYPES.APPEND_ACK) {
+        this._handleAck(followerId, response.data);
+      }
+    } catch (err) {
+      this.logger.error('Failed to parse follower response', {
+        followerId,
+        error: err.message
+      });
+    }
+  }
+
+  /**
+   * Handle ACK from follower
+   */
+  _handleAck(followerId, data) {
+    const { topic, offset } = data;
+    
+    const follower = this.followers.get(followerId);
+    if (!follower) {
+      return;
+    }
+
+    follower.lastAckTime = Date.now();
+    follower.lastAckOffset = offset;
+
+    const topicState = this.topicState.get(topic);
+    if (topicState) {
+      topicState.pendingAcks.delete(`${followerId}:${offset}`);
+    }
+
+    this.stats.totalAcksReceived += 1;
+
+    this.logger.trace('Replication ACK received', {
+      followerId,
+      topic,
+      offset
+    });
+  }
+
+  /**
+   * Replicate log entry to followers
+   */
+  replicateEntry(topic, offset, message, timestamp) {
+    if (this.closed) {
+      return;
+    }
+
+    if (!this.replicationQueue.has(topic)) {
+      this.replicationQueue.set(topic, []);
+    }
+
+    const queue = this.replicationQueue.get(topic);
+    queue.push({ topic, offset, message, timestamp });
+
+    if (queue.length >= this.batchSize) {
+      this._flushTopic(topic);
+    } else {
+      this._scheduleFlush(topic);
+    }
+  }
+
+  /**
+   * Schedule batch flush
+   */
+  _scheduleFlush(topic) {
+    if (this.flushTimers.has(topic)) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      this.flushTimers.delete(topic);
+      this._flushTopic(topic);
+    }, this.batchTimeoutMs);
+
+    this.flushTimers.set(topic, timer);
+  }
+
+  /**
+   * Flush topic replication queue
+   */
+  _flushTopic(topic) {
+    const queue = this.replicationQueue.get(topic);
+    if (!queue || queue.length === 0) {
+      return;
+    }
+
+    const timer = this.flushTimers.get(topic);
+    if (timer) {
+      clearTimeout(timer);
+      this.flushTimers.delete(topic);
+    }
+
+    const entries = queue.splice(0, queue.length);
+    
+    this.logger.debug('Flushing replication batch', {
+      topic,
+      entryCount: entries.length
+    });
+
+    for (const follower of this.followers.values()) {
+      if (follower.connected) {
+        this._sendToFollower(follower, topic, entries);
+      }
+    }
+  }
+
+  /**
+   * Send entries to specific follower
+   */
+  _sendToFollower(follower, topic, entries) {
+    if (!follower.socket || !follower.connected) {
+      return;
+    }
+
+    const replicationData = createReplicationMessage(REPLICATION_TYPES.APPEND_ENTRIES, {
+      leaderId: this.brokerId,
+      topic,
+      entries: entries.map(e => ({
+        offset: e.offset,
+        message: e.message.toString('base64'),
+        timestamp: e.timestamp
+      }))
+    });
+
+    const payload = Buffer.from(JSON.stringify(replicationData), 'utf8');
+    const packet = encodePacket({
+      opcode: OPCODES.REPLICATION_PACKET,
+      payload,
+      timestamp: Date.now()
+    });
+
+    try {
+      follower.socket.write(packet, (err) => {
+        if (err) {
+          this.logger.error('Failed to send replication data', {
+            followerId: follower.followerId,
+            topic,
+            error: err.message
+          });
+          this.stats.replicationErrors += 1;
+        } else {
+          this.stats.totalBytesSent += packet.length;
+          this.stats.totalEntriesSent += entries.length;
+
+          // Track pending ACKs
+          const topicState = this._getOrCreateTopicState(topic);
+          for (const entry of entries) {
+            topicState.pendingAcks.add(`${follower.followerId}:${entry.offset}`);
+          }
+          topicState.lastSent = Date.now();
+        }
+      });
+    } catch (err) {
+      this.logger.error('Exception sending replication data', {
+        followerId: follower.followerId,
+        error: err.message
+      });
+      this.stats.replicationErrors += 1;
+    }
+  }
+
+  /**
+   * Get or create topic state
+   */
+  _getOrCreateTopicState(topic) {
+    if (!this.topicState.has(topic)) {
+      this.topicState.set(topic, {
+        nextOffset: 0,
+        pendingAcks: new Set(),
+        lastSent: Date.now()
+      });
+    }
+    return this.topicState.get(topic);
+  }
+
+  /**
+   * Get replication statistics
+   */
+  getStats() {
+    const followerStats = [];
+
+    for (const [followerId, follower] of this.followers.entries()) {
+      followerStats.push({
+        followerId,
+        connected: follower.connected,
+        lastAckTime: follower.lastAckTime,
+        lastAckOffset: follower.lastAckOffset,
+        replicationLag: follower.replicationLag
+      });
+    }
+
+    return {
+      ...this.stats,
+      followerCount: this.followers.size,
+      followers: followerStats
+    };
+  }
+
+  /**
+   * Get In-Sync Replicas for a topic
+   */
+  getISR(topic) {
+    const isr = [this.brokerId];
+    const now = Date.now();
+
+    for (const [followerId, follower] of this.followers.entries()) {
+      if (!follower.connected) {
+        continue;
+      }
+
+      const lag = now - follower.lastAckTime;
+      if (lag < this.maxLagMs) {
+        isr.push(followerId);
+      }
+    }
+
+    return isr;
+  }
+
+  /**
+   * Close the replication sender
+   */
+  close() {
+    if (this.closed) {
+      return;
+    }
+
+    this.logger.info('Closing replication sender');
+    this.closed = true;
+
+    // Clear flush timers
+    for (const timer of this.flushTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.flushTimers.clear();
+
+    // Close all follower connections
+    for (const follower of this.followers.values()) {
+      if (follower.socket) {
+        follower.socket.destroy();
+      }
+    }
+    this.followers.clear();
+
+    this.logger.info('Replication sender closed');
+  }
+}
+
+module.exports = {
+  ReplicationSender
+};

@@ -15,6 +15,8 @@ class TcpServer {
 
     this.messageRouter = new MessageRouter({
       brokerState: this.brokerState,
+      followerSync: opts.followerSync,
+      onPublish: opts.onPublish,
       logger: this.logger.child({ component: 'messageRouter' })
     });
 

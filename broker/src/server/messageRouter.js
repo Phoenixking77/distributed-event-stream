@@ -8,6 +8,8 @@ class MessageRouter {
   constructor(options) {
     const opts = options || {};
     this.brokerState = opts.brokerState;
+    this.followerSync = opts.followerSync;
+    this.onPublish = opts.onPublish;
     this.logger = opts.logger || new Logger({ name: 'messageRouter' });
   }
 
@@ -26,6 +28,10 @@ class MessageRouter {
 
         case OPCODES.HEARTBEAT:
           await this._handleHeartbeat(payload, socket);
+          break;
+
+        case OPCODES.REPLICATION_PACKET:
+          await this._handleReplication(payload, socket);
           break;
 
         default:
@@ -71,6 +77,11 @@ class MessageRouter {
     });
 
     socket.write(ackPacket);
+
+    // Trigger replication if leader
+    if (this.onPublish) {
+      this.onPublish(topic, result.offset, messageBuffer, result.timestamp);
+    }
 
     this._notifySubscribers(topic, result);
   }
@@ -161,6 +172,27 @@ class MessageRouter {
       }
     } catch (err) {
       this.logger.error('Stream error', err);
+    }
+  }
+
+  async _handleReplication(payload, socket) {
+    if (!this.followerSync) {
+      this.logger.warn('Replication received but follower sync not configured');
+      return;
+    }
+
+    try {
+      const message = JSON.parse(payload.toString('utf8'));
+      const leaderId = message.data?.leaderId || 'unknown';
+      
+      this.followerSync.handleReplicationMessage(message, socket, leaderId);
+      
+      this.logger.trace('Replication message handled', {
+        type: message.type,
+        leaderId
+      });
+    } catch (err) {
+      this.logger.error('Failed to handle replication', err);
     }
   }
 
