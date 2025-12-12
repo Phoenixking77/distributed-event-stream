@@ -64,7 +64,7 @@ class Heartbeat {
     this.socket.on('error', (err) => {
       this.logger.error('Heartbeat socket error', err);
       this.stats.errors += 1;
-    });
+    }); 
 
     this.logger.info('Starting heartbeat', {
       brokerId: this.brokerId,

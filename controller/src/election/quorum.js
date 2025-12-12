@@ -2,24 +2,16 @@
 
 const { Logger } = require('../../../shared/utils/logger');
 
-/**
- * Quorum manages vote counting and consensus decisions.
- * Implements majority-based quorum logic for leader election.
- */
 class Quorum {
   constructor(options) {
     const opts = options || {};
     this.logger = opts.logger || new Logger({ name: 'quorum' });
     
-    // Current term and vote tracking
     this.currentTerm = 0;
     this.votedFor = null;
-    this.votes = new Map(); // term -> { candidateId -> Set(voterIds) }
+    this.votes = new Map();
   }
 
-  /**
-   * Start a new election term
-   */
   startNewTerm(term) {
     if (term <= this.currentTerm) {
       this.logger.warn('Attempted to start term that is not greater than current', {
@@ -36,16 +28,10 @@ class Quorum {
     return true;
   }
 
-  /**
-   * Get current term
-   */
   getCurrentTerm() {
     return this.currentTerm;
   }
 
-  /**
-   * Record a vote in the current term
-   */
   recordVote(term, voterId, candidateId) {
     if (term < this.currentTerm) {
       this.logger.debug('Ignoring vote from old term', { term, currentTerm: this.currentTerm });
@@ -58,7 +44,6 @@ class Quorum {
       this.votedFor = null;
     }
 
-    // Check if this voter has already voted in this term
     if (this.votedFor && this.votedFor !== candidateId) {
       this.logger.debug('Voter already voted for different candidate', {
         term,
@@ -69,7 +54,6 @@ class Quorum {
       return false;
     }
 
-    // Initialize votes map for this term
     if (!this.votes.has(term)) {
       this.votes.set(term, new Map());
     }
@@ -109,9 +93,6 @@ class Quorum {
     return candidateVotes ? candidateVotes.size : 0;
   }
 
-  /**
-   * Check if candidate has majority votes
-   */
   hasMajority(term, candidateId, totalNodes) {
     const voteCount = this.getVoteCount(term, candidateId);
     const required = Math.floor(totalNodes / 2) + 1;
@@ -127,23 +108,14 @@ class Quorum {
     return voteCount >= required;
   }
 
-  /**
-   * Get who was voted for in current term
-   */
   getVotedFor() {
     return this.votedFor;
   }
 
-  /**
-   * Check if already voted in current term
-   */
   hasVotedInCurrentTerm() {
     return this.votedFor !== null;
   }
 
-  /**
-   * Get all candidates and their votes for a term
-   */
   getTermResults(term) {
     const termVotes = this.votes.get(term);
     if (!termVotes) {
@@ -161,9 +133,6 @@ class Quorum {
     return results;
   }
 
-  /**
-   * Clear votes older than specified term (garbage collection)
-   */
   clearOldVotes(currentTerm) {
     const termsToDelete = [];
     
@@ -185,9 +154,6 @@ class Quorum {
     }
   }
 
-  /**
-   * Reset all state (for testing or restart)
-   */
   reset() {
     this.logger.info('Resetting quorum state');
     this.currentTerm = 0;
