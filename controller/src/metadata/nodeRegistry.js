@@ -1,7 +1,7 @@
 'use strict';
 
-const { Logger } = require('../../../shared/utils/logger');
-const { NODE_STATES, HEARTBEAT_INTERVALS } = require('../../../shared/protocol/clusterTypes');
+import { Logger } from '../../../shared/utils/logger';
+import { NODE_STATES, HEARTBEAT_INTERVALS } from '../../../shared/protocol/clusterTypes';
 
 /**
  * NodeRegistry manages the lifecycle and health of all broker nodes in the cluster.
@@ -355,6 +355,6 @@ class NodeRegistry {
   }
 }
 
-module.exports = {
+export default {
   NodeRegistry
 };

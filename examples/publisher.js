@@ -1,6 +1,6 @@
 'use strict';
 
-const { Client } = require('../client-sdk/src');
+import { Client } from '../client-sdk/src';
 
 async function main() {
   const client = new Client({

@@ -1,9 +1,9 @@
 'use strict';
 
-const { TcpClient } = require('./connection/tcpClient');
-const { encodePacket, decodePacket } = require('../../shared/protocol/codec');
-const { OPCODES } = require('../../shared/protocol/packetTypes');
-const { Logger } = require('../../shared/utils/logger');
+import { TcpClient } from './connection/tcpClient';
+import { encodePacket, decodePacket } from '../../shared/protocol/codec';
+import { OPCODES } from '../../shared/protocol/packetTypes';
+import { Logger } from '../../shared/utils/logger';
 
 class Client {
   constructor(options) {
@@ -142,6 +142,6 @@ class Client {
   }
 }
 
-module.exports = {
+export default {
   Client
 };

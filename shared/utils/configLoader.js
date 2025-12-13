@@ -1,10 +1,10 @@
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
+import { readFileSync, existsSync } from 'fs';
+import { join, dirname, isAbsolute } from 'path';
 
 function loadJsonFile(filePath) {
-  const content = fs.readFileSync(filePath, 'utf8');
+  const content = readFileSync(filePath, 'utf8');
   return JSON.parse(content);
 }
 
@@ -29,22 +29,22 @@ function deepMerge(target, source) {
 function loadConfig(options) {
   const opts = options || {};
   const baseDir = opts.baseDir || process.cwd();
-  const defaultFile = opts.defaultFile || path.join('broker', 'src', 'config', 'default.json');
+  const defaultFile = opts.defaultFile || join('broker', 'src', 'config', 'default.json');
   const env = opts.env || process.env.NODE_ENV || 'development';
-  const envFile = path.join(
-    path.dirname(defaultFile),
+  const envFile = join(
+    dirname(defaultFile),
     `${env}.json`
   );
 
-  const defaultPath = path.isAbsolute(defaultFile) ? defaultFile : path.join(baseDir, defaultFile);
-  const envPath = path.isAbsolute(envFile) ? envFile : path.join(baseDir, envFile);
+  const defaultPath = isAbsolute(defaultFile) ? defaultFile : join(baseDir, defaultFile);
+  const envPath = isAbsolute(envFile) ? envFile : join(baseDir, envFile);
 
   let config = {};
-  if (fs.existsSync(defaultPath)) {
+  if (existsSync(defaultPath)) {
     config = loadJsonFile(defaultPath);
   }
 
-  if (fs.existsSync(envPath)) {
+  if (existsSync(envPath)) {
     config = deepMerge(config, loadJsonFile(envPath));
   }
 
@@ -101,6 +101,6 @@ function parseEnvValue(raw) {
   return raw;
 }
 
-module.exports = {
+export default {
   loadConfig
 };

@@ -1,14 +1,10 @@
 'use strict';
 
-const net = require('net');
-const { Logger } = require('../../../shared/utils/logger');
-const { encodePacket } = require('../../../shared/protocol/codec');
-const { OPCODES } = require('../../../shared/protocol/packetTypes');
-const {
-  REPLICATION_TYPES,
-  ISR_CONFIG,
-  createReplicationMessage
-} = require('../../../shared/protocol/clusterTypes');
+import { createConnection } from 'net';
+import { Logger } from '../../../shared/utils/logger';
+import { encodePacket } from '../../../shared/protocol/codec';
+import { OPCODES } from '../../../shared/protocol/packetTypes';
+import { REPLICATION_TYPES, ISR_CONFIG, createReplicationMessage } from '../../../shared/protocol/clusterTypes';
 
 /**
  * ReplicationSender manages log replication from leader to followers.
@@ -116,7 +112,7 @@ class ReplicationSender {
       port: follower.port
     });
 
-    const socket = net.createConnection({
+    const socket = createConnection({
       host: follower.host,
       port: follower.port
     });
@@ -421,6 +417,6 @@ class ReplicationSender {
   }
 }
 
-module.exports = {
+export default {
   ReplicationSender
 };

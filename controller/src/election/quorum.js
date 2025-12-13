@@ -1,6 +1,6 @@
 'use strict';
 
-const { Logger } = require('../../../shared/utils/logger');
+import { Logger } from '../../../shared/utils/logger';
 
 class Quorum {
   constructor(options) {
@@ -162,6 +162,6 @@ class Quorum {
   }
 }
 
-module.exports = {
+export default {
   Quorum
 };

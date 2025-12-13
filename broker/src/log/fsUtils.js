@@ -1,28 +1,28 @@
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
+import { existsSync, mkdirSync, readdirSync, statSync, openSync, closeSync, writeSync, fsyncSync, readSync, fstatSync, renameSync, unlinkSync } from 'fs';
+import { join, dirname } from 'path';
 
 function ensureDir(dirPath) {
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
+  if (!existsSync(dirPath)) {
+    mkdirSync(dirPath, { recursive: true });
   }
 }
 
 function listLogSegments(topicDir) {
-  if (!fs.existsSync(topicDir)) {
+  if (!existsSync(topicDir)) {
     return [];
   }
 
-  const files = fs.readdirSync(topicDir);
+  const files = readdirSync(topicDir);
   const segments = [];
 
   for (const file of files) {
     const match = /^segment-(\d+)\.log$/.exec(file);
     if (match) {
       const segmentId = parseInt(match[1], 10);
-      const fullPath = path.join(topicDir, file);
-      const stat = fs.statSync(fullPath);
+      const fullPath = join(topicDir, file);
+      const stat = statSync(fullPath);
       segments.push({
         id: segmentId,
         path: fullPath,
@@ -36,27 +36,27 @@ function listLogSegments(topicDir) {
 }
 
 function openSegmentForAppend(segmentPath) {
-  ensureDir(path.dirname(segmentPath));
-  const fd = fs.openSync(segmentPath, 'a+');
+  ensureDir(dirname(segmentPath));
+  const fd = openSync(segmentPath, 'a+');
   return fd;
 }
 
 function openSegmentForRead(segmentPath) {
-  if (!fs.existsSync(segmentPath)) {
+  if (!existsSync(segmentPath)) {
     throw new Error(`Segment does not exist: ${segmentPath}`);
   }
-  const fd = fs.openSync(segmentPath, 'r');
+  const fd = openSync(segmentPath, 'r');
   return fd;
 }
 
 function closeFile(fd) {
   if (typeof fd === 'number') {
-    fs.closeSync(fd);
+    closeSync(fd);
   }
 }
 
 function writeToFile(fd, buffer) {
-  const written = fs.writeSync(fd, buffer);
+  const written = writeSync(fd, buffer);
   if (written !== buffer.length) {
     throw new Error(`Partial write: expected ${buffer.length}, wrote ${written}`);
   }
@@ -64,30 +64,30 @@ function writeToFile(fd, buffer) {
 }
 
 function fsyncFile(fd) {
-  fs.fsyncSync(fd);
+  fsyncSync(fd);
 }
 
 function readFromFile(fd, buffer, offset, length, position) {
-  const bytesRead = fs.readSync(fd, buffer, offset, length, position);
+  const bytesRead = readSync(fd, buffer, offset, length, position);
   return bytesRead;
 }
 
 function getFileSize(fd) {
-  const stat = fs.fstatSync(fd);
+  const stat = fstatSync(fd);
   return stat.size;
 }
 
 function renameFile(oldPath, newPath) {
-  fs.renameSync(oldPath, newPath);
+  renameSync(oldPath, newPath);
 }
 
 function deleteFile(filePath) {
-  if (fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
+  if (existsSync(filePath)) {
+    unlinkSync(filePath);
   }
 }
 
-module.exports = {
+export default {
   ensureDir,
   listLogSegments,
   openSegmentForAppend,

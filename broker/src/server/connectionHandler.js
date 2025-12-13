@@ -1,7 +1,7 @@
 'use strict';
 
-const { PacketParser } = require('../../../shared/protocol/codec');
-const { Logger } = require('../../../shared/utils/logger');
+import { PacketParser } from '../../../shared/protocol/codec';
+import { Logger } from '../../../shared/utils/logger';
 
 class ConnectionHandler {
   constructor(options) {
@@ -97,6 +97,6 @@ class ConnectionHandler {
   }
 }
 
-module.exports = {
+export default {
   ConnectionHandler
 };

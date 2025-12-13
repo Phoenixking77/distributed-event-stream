@@ -1,8 +1,8 @@
 'use strict';
 
-const dgram = require('dgram');
-const { Logger } = require('../../../shared/utils/logger');
-const { createHeartbeatMessage } = require('../../../shared/protocol/clusterTypes');
+import { createSocket } from 'dgram';
+import { Logger } from '../../../shared/utils/logger';
+import { createHeartbeatMessage } from '../../../shared/protocol/clusterTypes';
 
 /**
  * UDPHeartbeatListener receives heartbeats from broker nodes.
@@ -45,7 +45,7 @@ class UDPHeartbeatListener {
     }
 
     return new Promise((resolve, reject) => {
-      this.socket = dgram.createSocket('udp4');
+      this.socket = createSocket('udp4');
 
       this.socket.on('message', (msg, rinfo) => {
         this._handleHeartbeat(msg, rinfo);
@@ -194,6 +194,6 @@ class UDPHeartbeatListener {
   }
 }
 
-module.exports = {
+export default {
   UDPHeartbeatListener
 };

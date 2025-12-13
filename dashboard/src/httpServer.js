@@ -1,11 +1,11 @@
 'use strict';
 
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
-const url = require('url');
+import { createServer, request } from 'http';
+import { promises } from 'fs';
+import { join, extname } from 'path';
+import { parse } from 'url';
 
-const { Logger } = require('../../shared/utils/logger');
+import { Logger } from '../../shared/utils/logger';
 
 /**
  * DashboardHTTPServer exposes a read-only HTTP API and serves the
@@ -28,12 +28,12 @@ class DashboardHTTPServer {
     this.closed = false;
 
     // Resolve UI asset paths once; files are small enough to cache in memory.
-    const uiDir = opts.uiDir || path.join(__dirname, 'ui');
+    const uiDir = opts.uiDir || join(__dirname, 'ui');
     this.assets = {
-      '/': path.join(uiDir, 'index.html'),
-      '/index.html': path.join(uiDir, 'index.html'),
-      '/dashboard.css': path.join(uiDir, 'dashboard.css'),
-      '/metrics.js': path.join(uiDir, 'metrics.js')
+      '/': join(uiDir, 'index.html'),
+      '/index.html': join(uiDir, 'index.html'),
+      '/dashboard.css': join(uiDir, 'dashboard.css'),
+      '/metrics.js': join(uiDir, 'metrics.js')
     };
 
     this.assetCache = new Map();
@@ -47,7 +47,7 @@ class DashboardHTTPServer {
     await this._warmAssetCache();
 
     return new Promise((resolve, reject) => {
-      this.server = http.createServer((req, res) => {
+      this.server = createServer((req, res) => {
         this._handleRequest(req, res);
       });
 
@@ -94,7 +94,7 @@ class DashboardHTTPServer {
   async _warmAssetCache() {
     for (const [routePath, filePath] of Object.entries(this.assets)) {
       try {
-        const content = await fs.promises.readFile(filePath);
+        const content = await promises.readFile(filePath);
         const contentType = this._guessContentType(filePath);
         this.assetCache.set(routePath, { content, contentType });
       } catch (err) {
@@ -114,7 +114,7 @@ class DashboardHTTPServer {
       return;
     }
 
-    const parsed = url.parse(req.url, true);
+    const parsed = parse(req.url, true);
     const pathname = parsed.pathname || '/';
     const method = req.method || 'GET';
 
@@ -278,7 +278,7 @@ class DashboardHTTPServer {
   }
 
   _guessContentType(filePath) {
-    const ext = path.extname(filePath).toLowerCase();
+    const ext = extname(filePath).toLowerCase();
     switch (ext) {
       case '.html':
         return 'text/html; charset=utf-8';
@@ -317,7 +317,7 @@ class DashboardHTTPServer {
     };
 
     return new Promise((resolve, reject) => {
-      const req = http.request(options, (res) => {
+      const req = request(options, (res) => {
         const chunks = [];
 
         res.on('data', (chunk) => chunks.push(chunk));
@@ -348,6 +348,6 @@ class DashboardHTTPServer {
   }
 }
 
-module.exports = {
+export default {
   DashboardHTTPServer
 };

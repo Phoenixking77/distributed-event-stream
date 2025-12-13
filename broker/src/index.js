@@ -2,11 +2,11 @@
 
 const { TcpServer } = require('./server/tcpServer');
 const { BrokerState } = require('./state/brokerState');
-const { Heartbeat } = require('./state/heartbeat');
-const { ReplicationSender } = require('./replication/replicationSender');
-const { FollowerSync } = require('./replication/followerSync');
+const { Heartbeat } = require('./state/heartbeat').default;
+const { ReplicationSender } = require('./replication/replicationSender').default;
+const { FollowerSync } = require('./replication/followerSync').default;
 const { Logger } = require('../../shared/utils/logger');
-const { loadConfig } = require('../../shared/utils/configLoader');
+const { loadConfig } = require('../../shared/utils/configLoader').default;
 const { NODE_STATES } = require('../../shared/protocol/clusterTypes');
 
 class Broker {

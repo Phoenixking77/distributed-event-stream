@@ -1,7 +1,7 @@
 'use strict';
 
-const { Broker } = require('../broker/src');
-const { Client } = require('../client-sdk/src');
+import { Broker } from '../broker/src';
+import { Client } from '../client-sdk/src';
 
 async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));

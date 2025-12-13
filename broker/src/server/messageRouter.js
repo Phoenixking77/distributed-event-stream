@@ -1,8 +1,8 @@
 'use strict';
 
-const { OPCODES } = require('../../../shared/protocol/packetTypes');
-const { encodePacket } = require('../../../shared/protocol/codec');
-const { Logger } = require('../../../shared/utils/logger');
+import { OPCODES } from '../../../shared/protocol/packetTypes';
+import { encodePacket } from '../../../shared/protocol/codec';
+import { Logger } from '../../../shared/utils/logger';
 
 class MessageRouter {
   constructor(options) {
@@ -209,6 +209,6 @@ class MessageRouter {
   }
 }
 
-module.exports = {
+export default {
   MessageRouter
 };

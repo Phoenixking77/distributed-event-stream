@@ -1,9 +1,9 @@
 'use strict';
 
-const { Client } = require('./client');
-const { TcpClient } = require('./connection/tcpClient');
+import { Client } from './client';
+import { TcpClient } from './connection/tcpClient';
 
-module.exports = {
+export default {
   Client,
   TcpClient,
   createClient: (options) => new Client(options)

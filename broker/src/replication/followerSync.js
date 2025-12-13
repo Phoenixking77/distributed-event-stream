@@ -1,7 +1,7 @@
 'use strict';
 
-const { Logger } = require('../../../shared/utils/logger');
-const { REPLICATION_TYPES, createReplicationMessage } = require('../../../shared/protocol/clusterTypes');
+import { Logger } from '../../../shared/utils/logger';
+import { REPLICATION_TYPES, createReplicationMessage } from '../../../shared/protocol/clusterTypes';
 
 /**
  * FollowerSync handles receiving and applying replicated log entries from the leader.
@@ -269,6 +269,6 @@ class FollowerSync {
   }
 }
 
-module.exports = {
+export default {
   FollowerSync
 };

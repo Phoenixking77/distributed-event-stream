@@ -1,7 +1,7 @@
 'use strict';
 
-const http = require('http');
-const { Logger } = require('../../../shared/utils/logger');
+import { createServer } from 'http';
+import { Logger } from '../../../shared/utils/logger';
 
 /**
  * HTTPApi provides REST endpoints for querying cluster state,
@@ -45,7 +45,7 @@ class HTTPApi {
     }
 
     return new Promise((resolve, reject) => {
-      this.server = http.createServer((req, res) => {
+      this.server = createServer((req, res) => {
         this._handleRequest(req, res);
       });
 
@@ -341,6 +341,6 @@ class HTTPApi {
   }
 }
 
-module.exports = {
+export default {
   HTTPApi
 };

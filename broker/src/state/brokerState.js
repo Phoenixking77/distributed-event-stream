@@ -1,6 +1,6 @@
 'use strict';
 
-const { CommitLog } = require('../log/commitLog');
+const { CommitLog } = require('../log/commitLog').default;
 const { Logger } = require('../../../shared/utils/logger');
 
 class BrokerState {

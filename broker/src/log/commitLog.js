@@ -1,9 +1,9 @@
 'use strict';
 
-const path = require('path');
-const { SegmentManager } = require('./segmentManager');
-const { crc32 } = require('../../../shared/protocol/checksum');
-const { Logger } = require('../../../shared/utils/logger');
+import { join } from 'path';
+import { SegmentManager } from './segmentManager';
+import { crc32 } from '../../../shared/protocol/checksum';
+import { Logger } from '../../../shared/utils/logger';
 
 class CommitLog {
   constructor(options) {
@@ -17,7 +17,7 @@ class CommitLog {
 
     this.topic = opts.topic;
     this.dataDir = opts.dataDir;
-    this.topicPath = path.join(this.dataDir, 'topics', this.topic);
+    this.topicPath = join(this.dataDir, 'topics', this.topic);
     this.logger = opts.logger || new Logger({ name: 'commitLog' });
 
     const maxSegmentSize = opts.maxSegmentSize || 64 * 1024 * 1024;
@@ -188,6 +188,6 @@ class CommitLog {
   }
 }
 
-module.exports = {
+export default {
   CommitLog
 };

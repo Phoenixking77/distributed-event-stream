@@ -11,7 +11,7 @@ const {
   readFromFile,
   getFileSize,
   deleteFile
-} = require('./fsUtils');
+} = require('./fsUtils').default;
 const { Logger } = require('../../../shared/utils/logger');
 
 const DEFAULT_SEGMENT_SIZE = 64 * 1024 * 1024;

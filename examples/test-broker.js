@@ -1,6 +1,6 @@
 'use strict';
 
-const { Broker } = require('../broker/src');
+import { Broker } from '../broker/src';
 
 async function main() {
   console.log('Starting broker in test mode...');

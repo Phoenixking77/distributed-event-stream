@@ -1,16 +1,7 @@
 'use strict';
 
-const {
-  MAGIC,
-  PROTOCOL_VERSION,
-  OPCODES,
-  OPCODE_NAMES,
-  HEADER_LENGTH,
-  FOOTER_LENGTH,
-  MIN_PACKET_LENGTH,
-  MAX_PAYLOAD_LENGTH
-} = require('./packetTypes');
-const { crc32, readCrc32BE } = require('./checksum');
+import { MAGIC, PROTOCOL_VERSION, OPCODES, OPCODE_NAMES, HEADER_LENGTH, FOOTER_LENGTH, MIN_PACKET_LENGTH, MAX_PAYLOAD_LENGTH } from './packetTypes';
+import { crc32, readCrc32BE } from './checksum';
 
 function encodePacket({ opcode, payload, timestamp }) {
   if (typeof opcode === 'string') {
@@ -247,7 +238,7 @@ class PacketParser {
   }
 }
 
-module.exports = {
+export default {
   encodePacket,
   decodePacket,
   PacketParser

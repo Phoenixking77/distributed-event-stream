@@ -1,8 +1,8 @@
 'use strict';
 
 const net = require('net');
-const { ConnectionHandler } = require('./connectionHandler');
-const { MessageRouter } = require('./messageRouter');
+const { ConnectionHandler } = require('./connectionHandler').default;
+const { MessageRouter } = require('./messageRouter').default;
 const { Logger } = require('../../../shared/utils/logger');
 
 class TcpServer {

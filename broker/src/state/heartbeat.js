@@ -1,12 +1,8 @@
 'use strict';
 
-const dgram = require('dgram');
-const { Logger } = require('../../../shared/utils/logger');
-const {
-  NODE_STATES,
-  HEARTBEAT_INTERVALS,
-  createHeartbeatMessage
-} = require('../../../shared/protocol/clusterTypes');
+import { createSocket } from 'dgram';
+import { Logger } from '../../../shared/utils/logger';
+import { NODE_STATES, HEARTBEAT_INTERVALS, createHeartbeatMessage } from '../../../shared/protocol/clusterTypes';
 
 /**
  * Heartbeat sends periodic health signals from broker to controller.
@@ -59,7 +55,7 @@ class Heartbeat {
       throw new Error('Heartbeat already started');
     }
 
-    this.socket = dgram.createSocket('udp4');
+    this.socket = createSocket('udp4');
 
     this.socket.on('error', (err) => {
       this.logger.error('Heartbeat socket error', err);
@@ -223,6 +219,6 @@ class Heartbeat {
   }
 }
 
-module.exports = {
+export default {
   Heartbeat
 };

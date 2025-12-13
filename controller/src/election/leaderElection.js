@@ -1,12 +1,7 @@
 'use strict';
 
-const { 
-  NODE_STATES, 
-  ELECTION_TYPES, 
-  HEARTBEAT_INTERVALS,
-  createElectionMessage 
-} = require('../../../shared/protocol/clusterTypes');
-const { Logger } = require('../../../shared/utils/logger');
+import { NODE_STATES, ELECTION_TYPES, HEARTBEAT_INTERVALS, createElectionMessage } from '../../../shared/protocol/clusterTypes';
+import { Logger } from '../../../shared/utils/logger';
 
 class LeaderElection {
   constructor(options = {}) {
@@ -372,6 +367,6 @@ class LeaderElection {
   }
 }
 
-module.exports = {
+export default {
   LeaderElection
 };

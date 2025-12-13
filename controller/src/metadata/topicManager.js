@@ -1,7 +1,7 @@
 'use strict';
 
-const { Logger } = require('../../../shared/utils/logger');
-const { ISR_CONFIG } = require('../../../shared/protocol/clusterTypes');
+import { Logger } from '../../../shared/utils/logger';
+import { ISR_CONFIG } from '../../../shared/protocol/clusterTypes';
 
 /**
  * TopicManager handles topic metadata, partition assignments,
@@ -386,6 +386,6 @@ class TopicManager {
   }
 }
 
-module.exports = {
+export default {
   TopicManager
 };

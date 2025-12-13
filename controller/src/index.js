@@ -1,11 +1,11 @@
 'use strict';
 
-const { Logger } = require('../../shared/utils/logger');
-const { NodeRegistry } = require('./metadata/nodeRegistry');
-const { TopicManager } = require('./metadata/topicManager');
-const { LeaderElection } = require('./election/leaderElection');
-const { UDPHeartbeatListener } = require('./server/udpHeartbeatListener');
-const { HTTPApi } = require('./server/httpApi');
+import { Logger } from '../../shared/utils/logger';
+import { NodeRegistry } from './metadata/nodeRegistry';
+import { TopicManager } from './metadata/topicManager';
+import { LeaderElection } from './election/leaderElection';
+import { UDPHeartbeatListener } from './server/udpHeartbeatListener';
+import { HTTPApi } from './server/httpApi';
 
 /**
  * Controller is the central coordinator for the distributed event streaming cluster.
@@ -223,7 +223,7 @@ class Controller {
   }
 }
 
-module.exports = {
+export default {
   Controller
 };
 

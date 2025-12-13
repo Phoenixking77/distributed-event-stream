@@ -1,9 +1,9 @@
 'use strict';
 
-const path = require('path');
-const { Logger } = require('../../shared/utils/logger');
-const { loadConfig } = require('../../shared/utils/configLoader');
-const { DashboardHTTPServer } = require('./httpServer');
+import { join } from 'path';
+import { Logger } from '../../shared/utils/logger';
+import { loadConfig } from '../../shared/utils/configLoader';
+import { DashboardHTTPServer } from './httpServer';
 
 function createDashboardConfig() {
   const baseConfig = loadConfig({});
@@ -37,7 +37,7 @@ async function main() {
   const logger = new Logger({ name: 'dashboard-main' });
   const config = createDashboardConfig();
 
-  const uiDir = path.join(__dirname, 'ui');
+  const uiDir = join(__dirname, 'ui');
 
   const server = new DashboardHTTPServer({
     logger,
@@ -74,7 +74,7 @@ if (require.main === module) {
   main();
 }
 
-module.exports = {
+export default {
   createDashboardConfig,
   main
 };

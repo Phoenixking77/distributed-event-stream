@@ -1,8 +1,8 @@
 'use strict';
 
-const net = require('net');
-const { PacketParser } = require('../../../shared/protocol/codec');
-const { Logger } = require('../../../shared/utils/logger');
+import { connect as _connect } from 'net';
+import { PacketParser } from '../../../shared/protocol/codec';
+import { Logger } from '../../../shared/utils/logger';
 
 class TcpClient {
   constructor(options) {
@@ -36,7 +36,7 @@ class TcpClient {
 
       this.connecting = true;
 
-      this.socket = net.connect({
+      this.socket = _connect({
         host: this.host,
         port: this.port
       });
@@ -153,6 +153,6 @@ class TcpClient {
   }
 }
 
-module.exports = {
+export default {
   TcpClient
 };
