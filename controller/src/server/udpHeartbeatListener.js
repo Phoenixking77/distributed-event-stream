@@ -1,8 +1,8 @@
 'use strict';
 
 import { createSocket } from 'dgram';
-import { Logger } from '../../../shared/utils/logger';
-import { createHeartbeatMessage } from '../../../shared/protocol/clusterTypes';
+import { Logger } from '../../../shared/utils/logger.js';
+import { createHeartbeatMessage } from '../../../shared/protocol/clusterTypes.js';
 
 /**
  * UDPHeartbeatListener receives heartbeats from broker nodes.
@@ -194,6 +194,6 @@ class UDPHeartbeatListener {
   }
 }
 
-export default {
+export {
   UDPHeartbeatListener
 };

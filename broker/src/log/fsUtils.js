@@ -1,6 +1,19 @@
 'use strict';
 
-import { existsSync, mkdirSync, readdirSync, statSync, openSync, closeSync, writeSync, fsyncSync, readSync, fstatSync, renameSync, unlinkSync } from 'fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  statSync,
+  openSync,
+  closeSync,
+  writeSync,
+  fsyncSync,
+  readSync,
+  fstatSync,
+  renameSync,
+  unlinkSync
+} from 'fs';
 import { join, dirname } from 'path';
 
 function ensureDir(dirPath) {
@@ -87,7 +100,7 @@ function deleteFile(filePath) {
   }
 }
 
-export default {
+export {
   ensureDir,
   listLogSegments,
   openSegmentForAppend,

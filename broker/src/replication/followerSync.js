@@ -1,7 +1,7 @@
 'use strict';
 
-import { Logger } from '../../../shared/utils/logger';
-import { REPLICATION_TYPES, createReplicationMessage } from '../../../shared/protocol/clusterTypes';
+import { Logger } from '../../../shared/utils/logger.js';
+import { REPLICATION_TYPES, createReplicationMessage } from '../../../shared/protocol/clusterTypes.js';
 
 /**
  * FollowerSync handles receiving and applying replicated log entries from the leader.
@@ -269,6 +269,4 @@ class FollowerSync {
   }
 }
 
-export default {
-  FollowerSync
-};
+export { FollowerSync };

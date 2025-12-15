@@ -1,7 +1,7 @@
 'use strict';
 
-import { Logger } from '../../../shared/utils/logger';
-import { ISR_CONFIG } from '../../../shared/protocol/clusterTypes';
+import { Logger } from '../../../shared/utils/logger.js';
+import { ISR_CONFIG } from '../../../shared/protocol/clusterTypes.js';
 
 /**
  * TopicManager handles topic metadata, partition assignments,
@@ -386,6 +386,6 @@ class TopicManager {
   }
 }
 
-export default {
+export {
   TopicManager
 };

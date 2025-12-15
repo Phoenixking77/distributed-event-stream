@@ -1,7 +1,7 @@
 'use strict';
 
-const { CommitLog } = require('../log/commitLog').default;
-const { Logger } = require('../../../shared/utils/logger');
+import { CommitLog } from '../log/commitLog.js';
+import { Logger } from '../../../shared/utils/logger.js';
 
 class BrokerState {
   constructor(options) {
@@ -18,7 +18,7 @@ class BrokerState {
   async getOrCreateTopic(topicName) {
     if (this.topics.has(topicName)) {
       return this.topics.get(topicName);
-    }
+    } 
 
     this.logger.info('Creating new topic', { topic: topicName });
 
@@ -28,7 +28,7 @@ class BrokerState {
       maxSegmentSize: this.logConfig.maxSegmentSize,
       syncInterval: this.logConfig.syncInterval,
       logger: this.logger.child({ topic: topicName })
-    });
+    });1
 
     await commitLog.initialize();
     this.topics.set(topicName, commitLog);
@@ -136,6 +136,4 @@ class BrokerState {
   }
 }
 
-module.exports = {
-  BrokerState
-};
+export { BrokerState };

@@ -1,6 +1,6 @@
 'use strict';
 
-import { Logger } from '../../../shared/utils/logger';
+import { Logger } from '../../../shared/utils/logger.js';
 
 class Quorum {
   constructor(options) {
@@ -162,6 +162,6 @@ class Quorum {
   }
 }
 
-export default {
+export {
   Quorum
 };

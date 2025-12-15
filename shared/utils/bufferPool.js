@@ -52,7 +52,7 @@ function getSharedBufferPool() {
   return sharedPool;
 }
 
-module.exports = {
+export {
   BufferPool,
   getSharedBufferPool
 };

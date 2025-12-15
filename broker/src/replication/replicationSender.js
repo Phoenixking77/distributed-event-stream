@@ -1,10 +1,10 @@
 'use strict';
 
 import { createConnection } from 'net';
-import { Logger } from '../../../shared/utils/logger';
-import { encodePacket } from '../../../shared/protocol/codec';
-import { OPCODES } from '../../../shared/protocol/packetTypes';
-import { REPLICATION_TYPES, ISR_CONFIG, createReplicationMessage } from '../../../shared/protocol/clusterTypes';
+import { Logger } from '../../../shared/utils/logger.js';
+import { encodePacket } from '../../../shared/protocol/codec.js';
+import { OPCODES } from '../../../shared/protocol/packetTypes.js';
+import { REPLICATION_TYPES, ISR_CONFIG, createReplicationMessage } from '../../../shared/protocol/clusterTypes.js';
 
 /**
  * ReplicationSender manages log replication from leader to followers.
@@ -417,6 +417,4 @@ class ReplicationSender {
   }
 }
 
-export default {
-  ReplicationSender
-};
+export { ReplicationSender };

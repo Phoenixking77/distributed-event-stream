@@ -65,7 +65,7 @@ function createHeartbeatMessage(nodeId, nodeType, metadata = {}) {
   };
 }
 
-module.exports = {
+export {
   NODE_STATES,
   REPLICATION_TYPES,
   ELECTION_TYPES,

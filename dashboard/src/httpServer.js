@@ -2,10 +2,14 @@
 
 import { createServer, request } from 'http';
 import { promises } from 'fs';
-import { join, extname } from 'path';
+import { join, extname, dirname } from 'path';
 import { parse } from 'url';
+import { fileURLToPath } from 'url';
 
-import { Logger } from '../../shared/utils/logger';
+import { Logger } from '../../shared/utils/logger.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 /**
  * DashboardHTTPServer exposes a read-only HTTP API and serves the
@@ -348,6 +352,6 @@ class DashboardHTTPServer {
   }
 }
 
-export default {
+export {
   DashboardHTTPServer
 };

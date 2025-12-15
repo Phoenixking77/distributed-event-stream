@@ -1,8 +1,8 @@
 'use strict';
 
 import { createSocket } from 'dgram';
-import { Logger } from '../../../shared/utils/logger';
-import { NODE_STATES, HEARTBEAT_INTERVALS, createHeartbeatMessage } from '../../../shared/protocol/clusterTypes';
+import { Logger } from '../../../shared/utils/logger.js';
+import { NODE_STATES, HEARTBEAT_INTERVALS, createHeartbeatMessage } from '../../../shared/protocol/clusterTypes.js';
 
 /**
  * Heartbeat sends periodic health signals from broker to controller.
@@ -219,6 +219,4 @@ class Heartbeat {
   }
 }
 
-export default {
-  Heartbeat
-};
+export { Heartbeat };

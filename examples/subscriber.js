@@ -1,6 +1,6 @@
 'use strict';
 
-import { Client } from '../client-sdk/src';
+import { Client } from '../client-sdk/src/index.js';
 
 async function main() {
   const client = new Client({

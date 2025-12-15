@@ -1,7 +1,7 @@
 'use strict';
 
-import { Broker } from '../broker/src';
-import { Client } from '../client-sdk/src';
+import { Broker } from '../broker/src/index.js';
+import { Client } from '../client-sdk/src/index.js';
 
 async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));

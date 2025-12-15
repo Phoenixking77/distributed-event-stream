@@ -1,9 +1,9 @@
 'use strict';
 
 import { join } from 'path';
-import { SegmentManager } from './segmentManager';
-import { crc32 } from '../../../shared/protocol/checksum';
-import { Logger } from '../../../shared/utils/logger';
+import { SegmentManager } from './segmentManager.js';
+import { crc32 } from '../../../shared/protocol/checksum.js';
+import { Logger } from '../../../shared/utils/logger.js';
 
 class CommitLog {
   constructor(options) {
@@ -188,6 +188,4 @@ class CommitLog {
   }
 }
 
-export default {
-  CommitLog
-};
+export { CommitLog };

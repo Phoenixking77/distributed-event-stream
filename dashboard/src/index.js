@@ -1,9 +1,13 @@
 'use strict';
 
-import { join } from 'path';
-import { Logger } from '../../shared/utils/logger';
-import { loadConfig } from '../../shared/utils/configLoader';
-import { DashboardHTTPServer } from './httpServer';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { Logger } from '../../shared/utils/logger.js';
+import { loadConfig } from '../../shared/utils/configLoader.js';
+import { DashboardHTTPServer } from './httpServer.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 function createDashboardConfig() {
   const baseConfig = loadConfig({});
@@ -69,12 +73,12 @@ async function main() {
   process.on('SIGTERM', shutdown);
 }
 
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   // eslint-disable-next-line no-floating-promises
   main();
 }
 
-export default {
+export {
   createDashboardConfig,
   main
 };

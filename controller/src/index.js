@@ -1,11 +1,11 @@
 'use strict';
 
-import { Logger } from '../../shared/utils/logger';
-import { NodeRegistry } from './metadata/nodeRegistry';
-import { TopicManager } from './metadata/topicManager';
-import { LeaderElection } from './election/leaderElection';
-import { UDPHeartbeatListener } from './server/udpHeartbeatListener';
-import { HTTPApi } from './server/httpApi';
+import { Logger } from '../../shared/utils/logger.js';
+import { NodeRegistry } from './metadata/nodeRegistry.js';
+import { TopicManager } from './metadata/topicManager.js';
+import { LeaderElection } from './election/leaderElection.js';
+import { UDPHeartbeatListener } from './server/udpHeartbeatListener.js';
+import { HTTPApi } from './server/httpApi.js';
 
 /**
  * Controller is the central coordinator for the distributed event streaming cluster.
@@ -113,8 +113,8 @@ class Controller {
       // Start heartbeat listener
       await this.heartbeatListener.start();
 
-      // Start leader election
-      await this.leaderElection.initialize();
+      // Leader election starts automatically when a heartbeat is missed
+      // No explicit initialization needed
 
       // Start HTTP API
       await this.httpApi.start();
@@ -223,11 +223,9 @@ class Controller {
   }
 }
 
-export default {
-  Controller
-};
+export { Controller };
 
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   const controller = new Controller({
     heartbeatPort: process.env.HEARTBEAT_PORT || 9091,
     electionPort: process.env.ELECTION_PORT || 9093,
@@ -240,15 +238,12 @@ if (require.main === module) {
     process.exit(1);
   });
 
-  process.on('SIGINT', async () => {
-    console.log('\nReceived SIGINT, shutting down gracefully...');
+  const shutdown = async (signal) => {
+    console.log(`\nReceived ${signal}, shutting down gracefully...`);
     await controller.close();
     process.exit(0);
-  });
+  };
 
-  process.on('SIGTERM', async () => {
-    console.log('\nReceived SIGTERM, shutting down gracefully...');
-    await controller.close();
-    process.exit(0);
-  });
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
 }

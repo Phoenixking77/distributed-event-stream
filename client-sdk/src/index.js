@@ -1,10 +1,11 @@
 'use strict';
 
-import { Client } from './client';
-import { TcpClient } from './connection/tcpClient';
+import { Client } from './client.js';
+import { TcpClient } from './connection/tcpClient.js';
 
-export default {
+export {
   Client,
-  TcpClient,
-  createClient: (options) => new Client(options)
+  TcpClient
 };
+
+export const createClient = (options) => new Client(options);

@@ -1,7 +1,7 @@
 'use strict';
 
-const path = require('path');
-const {
+import path from 'path';
+import {
   listLogSegments,
   openSegmentForAppend,
   openSegmentForRead,
@@ -11,8 +11,8 @@ const {
   readFromFile,
   getFileSize,
   deleteFile
-} = require('./fsUtils').default;
-const { Logger } = require('../../../shared/utils/logger');
+} from './fsUtils.js';
+import { Logger } from '../../../shared/utils/logger.js';
 
 const DEFAULT_SEGMENT_SIZE = 64 * 1024 * 1024;
 const ENTRY_HEADER_SIZE = 4 + 8 + 4;
@@ -256,7 +256,4 @@ class SegmentManager {
   }
 }
 
-module.exports = {
-  SegmentManager,
-  ENTRY_HEADER_SIZE
-};
+export { SegmentManager, ENTRY_HEADER_SIZE };

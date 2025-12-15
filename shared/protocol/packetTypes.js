@@ -35,7 +35,7 @@ function opcodeNameFromValue(value) {
   return OPCODE_NAMES[value] || 'UNKNOWN';
 }
 
-module.exports = {
+export {
   MAGIC,
   PROTOCOL_VERSION,
   OPCODES,

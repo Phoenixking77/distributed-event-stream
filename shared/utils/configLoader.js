@@ -101,6 +101,4 @@ function parseEnvValue(raw) {
   return raw;
 }
 
-export default {
-  loadConfig
-};
+export { loadConfig };

@@ -1,8 +1,8 @@
 'use strict';
 
-import { OPCODES } from '../../../shared/protocol/packetTypes';
-import { encodePacket } from '../../../shared/protocol/codec';
-import { Logger } from '../../../shared/utils/logger';
+import { OPCODES } from '../../../shared/protocol/packetTypes.js';
+import { encodePacket } from '../../../shared/protocol/codec.js';
+import { Logger } from '../../../shared/utils/logger.js';
 
 class MessageRouter {
   constructor(options) {
@@ -209,6 +209,4 @@ class MessageRouter {
   }
 }
 
-export default {
-  MessageRouter
-};
+export { MessageRouter };

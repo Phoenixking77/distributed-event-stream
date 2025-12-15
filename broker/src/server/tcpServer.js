@@ -1,9 +1,9 @@
 'use strict';
 
-const net = require('net');
-const { ConnectionHandler } = require('./connectionHandler').default;
-const { MessageRouter } = require('./messageRouter').default;
-const { Logger } = require('../../../shared/utils/logger');
+import net from 'net';
+import { ConnectionHandler } from './connectionHandler.js';
+import { MessageRouter } from './messageRouter.js';
+import { Logger } from '../../../shared/utils/logger.js';
 
 class TcpServer {
   constructor(options) {
@@ -89,6 +89,4 @@ class TcpServer {
   }
 }
 
-module.exports = {
-  TcpServer
-};
+export { TcpServer };

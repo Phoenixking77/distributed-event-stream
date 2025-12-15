@@ -122,7 +122,7 @@ function serializeError(err) {
 
 const defaultLogger = new Logger({ name: 'root' });
 
-module.exports = {
+export {
   Logger,
   LEVELS,
   defaultLogger

@@ -1,7 +1,7 @@
 'use strict';
 
 import { createServer } from 'http';
-import { Logger } from '../../../shared/utils/logger';
+import { Logger } from '../../../shared/utils/logger.js';
 
 /**
  * HTTPApi provides REST endpoints for querying cluster state,
@@ -341,6 +341,6 @@ class HTTPApi {
   }
 }
 
-export default {
+export {
   HTTPApi
 };

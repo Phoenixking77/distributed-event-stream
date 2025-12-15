@@ -1,0 +1,29 @@
+{
+    "name": "distributed-event-stream",
+    "version": "1.0.0",
+    "description": "A production-grade, Kafka-like event streaming platform built from scratch with raw Node.js",
+    "type": "module",
+    "main": "broker/src/index.js",
+    "scripts": {
+        "broker": "node broker/src/index.js",
+        "controller": "node controller/src/index.js",
+        "dashboard": "node dashboard/src/index.js",
+        "publisher": "node examples/publisher.js",
+        "subscriber": "node examples/subscriber.js",
+        "test": "node examples/quick-test.js",
+        "inspect": "node scripts/topicInspector.js",
+        "cleanup": "node scripts/cleanupLogs.js"
+    },
+    "keywords": [
+        "streaming",
+        "kafka",
+        "event",
+        "distributed",
+        "pubsub"
+    ],
+    "author": "",
+    "license": "MIT",
+    "engines": {
+        "node": ">=14.0.0"
+    }
+}

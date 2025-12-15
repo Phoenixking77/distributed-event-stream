@@ -1,6 +1,6 @@
 'use strict';
 
-import { Broker } from '../broker/src';
+import { Broker } from '../broker/src/index.js';
 
 async function main() {
   console.log('Starting broker in test mode...');

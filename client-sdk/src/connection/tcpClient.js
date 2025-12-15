@@ -1,8 +1,8 @@
 'use strict';
 
 import { connect as _connect } from 'net';
-import { PacketParser } from '../../../shared/protocol/codec';
-import { Logger } from '../../../shared/utils/logger';
+import { PacketParser } from '../../../shared/protocol/codec.js';
+import { Logger } from '../../../shared/utils/logger.js';
 
 class TcpClient {
   constructor(options) {
@@ -153,6 +153,6 @@ class TcpClient {
   }
 }
 
-export default {
+export {
   TcpClient
 };

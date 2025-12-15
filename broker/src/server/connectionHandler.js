@@ -1,7 +1,7 @@
 'use strict';
 
-import { PacketParser } from '../../../shared/protocol/codec';
-import { Logger } from '../../../shared/utils/logger';
+import { PacketParser } from '../../../shared/protocol/codec.js';
+import { Logger } from '../../../shared/utils/logger.js';
 
 class ConnectionHandler {
   constructor(options) {
@@ -97,6 +97,4 @@ class ConnectionHandler {
   }
 }
 
-export default {
-  ConnectionHandler
-};
+export { ConnectionHandler };

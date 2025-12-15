@@ -1,7 +1,7 @@
 'use strict';
 
-import { NODE_STATES, ELECTION_TYPES, HEARTBEAT_INTERVALS, createElectionMessage } from '../../../shared/protocol/clusterTypes';
-import { Logger } from '../../../shared/utils/logger';
+import { NODE_STATES, ELECTION_TYPES, HEARTBEAT_INTERVALS, createElectionMessage } from '../../../shared/protocol/clusterTypes.js';
+import { Logger } from '../../../shared/utils/logger.js';
 
 class LeaderElection {
   constructor(options = {}) {
@@ -26,6 +26,10 @@ class LeaderElection {
     this.closed = false;
     
     this._startElectionTimer();
+  }
+
+  getCurrentTerm() {
+    return this.currentTerm;
   }
 
   startElection() {
@@ -208,7 +212,7 @@ class LeaderElection {
   }
 
   _requestVotes() {
-    const brokers = this.nodeRegistry.getBrokerNodes();
+    const brokers = this.nodeRegistry.getAllNodes();
     
     this.logger.debug('Requesting votes from brokers', {
       brokerCount: brokers.length,
@@ -367,6 +371,6 @@ class LeaderElection {
   }
 }
 
-export default {
+export {
   LeaderElection
 };

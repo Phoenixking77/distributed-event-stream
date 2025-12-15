@@ -1,13 +1,13 @@
 'use strict';
 
-const { TcpServer } = require('./server/tcpServer');
-const { BrokerState } = require('./state/brokerState');
-const { Heartbeat } = require('./state/heartbeat').default;
-const { ReplicationSender } = require('./replication/replicationSender').default;
-const { FollowerSync } = require('./replication/followerSync').default;
-const { Logger } = require('../../shared/utils/logger');
-const { loadConfig } = require('../../shared/utils/configLoader').default;
-const { NODE_STATES } = require('../../shared/protocol/clusterTypes');
+import { TcpServer } from './server/tcpServer.js';
+import { BrokerState } from './state/brokerState.js';
+import { Heartbeat } from './state/heartbeat.js';
+import { ReplicationSender } from './replication/replicationSender.js';
+import { FollowerSync } from './replication/followerSync.js';
+import { Logger } from '../../shared/utils/logger.js';
+import { loadConfig } from '../../shared/utils/configLoader.js';
+import { NODE_STATES } from '../../shared/protocol/clusterTypes.js';
 
 class Broker {
   constructor(options) {
@@ -180,15 +180,22 @@ class Broker {
   }
 }
 
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   const brokerId = process.env.BROKER_ID || `broker-${process.pid}`;
   const broker = new Broker({ brokerId });
   broker.start().catch((err) => {
     console.error('Failed to start broker:', err);
     process.exit(1);
   });
+
+  const shutdown = async (signal) => {
+    console.log(`\nReceived ${signal}, shutting down gracefully...`);
+    await broker.stop();
+    process.exit(0);
+  };
+
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
 }
 
-module.exports = {
-  Broker
-};
+export { Broker };

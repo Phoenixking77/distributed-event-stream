@@ -40,7 +40,7 @@ function readCrc32BE(buffer, offset) {
   return buffer.readUInt32BE(offset) >>> 0;
 }
 
-module.exports = {
+export {
   crc32,
   writeCrc32BE,
   readCrc32BE
