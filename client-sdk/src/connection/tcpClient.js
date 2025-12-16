@@ -1,11 +1,13 @@
 'use strict';
 
 import { connect as _connect } from 'net';
+import { EventEmitter } from 'events';
 import { PacketParser } from '../../../shared/protocol/codec.js';
 import { Logger } from '../../../shared/utils/logger.js';
 
-class TcpClient {
+class TcpClient extends EventEmitter {
   constructor(options) {
+    super();
     const opts = options || {};
     this.host = opts.host || 'localhost';
     this.port = opts.port || 9092;
@@ -41,12 +43,40 @@ class TcpClient {
         port: this.port
       });
 
-      this.socket.on('connect', () => {
+      let connectTimer = null;
+
+      const onConnect = () => {
+        if (connectTimer) clearTimeout(connectTimer);
         this.connected = true;
         this.connecting = false;
         this.logger.info('Connected', { host: this.host, port: this.port });
+        this.emit('connect');
         resolve();
-      });
+      };
+
+      const onError = (err) => {
+        if (connectTimer) clearTimeout(connectTimer);
+        this.logger.error('Socket error', err);
+        this.emit('error', err);
+        this.connecting = false;
+        reject(err);
+      };
+
+      const onClose = () => {
+        if (connectTimer) clearTimeout(connectTimer);
+      };
+
+      connectTimer = setTimeout(() => {
+        this.socket.removeListener('connect', onConnect);
+        this.socket.removeListener('error', onError);
+        this.socket.removeListener('close', onClose);
+        this.socket.destroy();
+        reject(new Error('Connection timeout'));
+      }, 15000); // 15 second timeout for TCP connection
+
+      this.socket.on('connect', onConnect);
+      this.socket.on('error', onError);
+      this.socket.on('close', onClose);
 
       this.socket.on('data', (chunk) => {
         try {
@@ -56,18 +86,11 @@ class TcpClient {
         }
       });
 
-      this.socket.on('error', (err) => {
-        this.logger.error('Socket error', err);
-        if (this.connecting) {
-          this.connecting = false;
-          reject(err);
-        }
-      });
-
       this.socket.on('close', () => {
         this.logger.info('Connection closed');
         this.connected = false;
         this.connecting = false;
+        this.emit('disconnect');
       });
     });
   }
@@ -83,14 +106,14 @@ class TcpClient {
       const timeout = opts.timeout || 5000;
 
       if (expectResponse) {
-        const requestId = this.nextRequestId;
-        this.nextRequestId += 1;
-
+        const requestId = this.nextRequestId++;
         let timer = null;
+
         const handler = (responsePacket) => {
           if (timer) {
             clearTimeout(timer);
           }
+          this.packetHandlers.delete(requestId);
           resolve(responsePacket);
         };
 
@@ -129,10 +152,13 @@ class TcpClient {
   }
 
   _onPacket(packet) {
-    const handlers = Array.from(this.packetHandlers.values());
-    if (handlers.length > 0) {
-      const handler = handlers.shift();
-      const requestId = Array.from(this.packetHandlers.keys())[0];
+    // First, check if any handler is waiting for a response
+    if (packet._requestId && this.packetHandlers.has(packet._requestId)) {
+      const handler = this.packetHandlers.get(packet._requestId);
+      handler(packet);
+    } else if (this.packetHandlers.size > 0) {
+      // If no request ID, give to the first waiting handler (FIFO)
+      const [requestId, handler] = this.packetHandlers.entries().next().value;
       this.packetHandlers.delete(requestId);
       handler(packet);
     }

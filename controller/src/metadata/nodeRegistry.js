@@ -105,10 +105,10 @@ class NodeRegistry {
   /**
    * Update node state (follower/candidate/leader)
    */
-  updateNodeState(nodeId, newState) {
+  updateNodeState(nodeId, newState, term = null) {
     const node = this.nodes.get(nodeId);
     if (!node) {
-      this.logger.warn('Attempted to update state of unknown node', { nodeId });
+      this.logger.warn('Attempted to update state of unknown node', { nodeId, newState, term });
       return false;
     }
 
@@ -117,10 +117,26 @@ class NodeRegistry {
       return true;
     }
 
+    // For controllers, validate term to prevent stale leader announcements
+    if (term !== null && node.metadata && node.metadata.type === 'controller') {
+      if (!node.metadata.term || term > node.metadata.term) {
+        node.metadata.term = term;
+      } else if (term < node.metadata.term) {
+        this.logger.warn('Rejecting stale term for node state update', {
+          nodeId,
+          newState,
+          term,
+          currentTerm: node.metadata.term
+        });
+        return false;
+      }
+    }
+
     this.logger.info('Node state transition', {
       nodeId,
       oldState,
-      newState
+      newState,
+      term: term || undefined
     });
 
     node.state = newState;

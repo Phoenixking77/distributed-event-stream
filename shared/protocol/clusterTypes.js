@@ -20,14 +20,15 @@ const REPLICATION_TYPES = Object.freeze({
 const ELECTION_TYPES = Object.freeze({
   VOTE_REQUEST: 'vote_request',
   VOTE_RESPONSE: 'vote_response',
-  LEADER_ANNOUNCEMENT: 'leader_announcement'
+  LEADER_ANNOUNCEMENT: 'leader_announcement',
+  LEADER_HEARTBEAT: 'leader_heartbeat'  // New: periodic heartbeat from leader to followers
 });
 
 // Heartbeat intervals (ms)
 const HEARTBEAT_INTERVALS = Object.freeze({
   BROKER_TO_CONTROLLER: 5000,    // 5s
   LEADER_TO_FOLLOWERS: 1000,     // 1s  
-  ELECTION_TIMEOUT: 8000,        // 8s
+  ELECTION_TIMEOUT: 15000,       // 15s (increased for local testing)
   DEAD_NODE_TIMEOUT: 15000       // 15s
 });
 

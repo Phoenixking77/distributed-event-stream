@@ -50,8 +50,8 @@ class Client extends EventEmitter {
     this.backoffMultiplier = opts.backoffMultiplier || 2;
 
     // Connection pooling & timeout
-    this.connectTimeout = opts.connectTimeout || 5000;
-    this.requestTimeout = opts.requestTimeout || 10000;
+    this.connectTimeout = opts.connectTimeout || 15000;
+    this.requestTimeout = opts.requestTimeout || 15000;
 
     // State
     this.tcpClient = null;

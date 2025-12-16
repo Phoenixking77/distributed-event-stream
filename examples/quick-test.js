@@ -17,6 +17,10 @@ async function main() {
         host: '0.0.0.0',
         dataDir: './test-data'
       },
+      controller: {
+        host: 'localhost',
+        port: 8080
+      },
       log: {
         maxSegmentSize: 1024 * 1024,
         syncInterval: 500
@@ -28,8 +32,8 @@ async function main() {
   await broker.start();
   await sleep(1000);
 
-  const publisher = new Client({ host: 'localhost', port: 9092 });
-  const subscriber = new Client({ host: 'localhost', port: 9092 });
+  const publisher = new Client({ host: 'localhost', port: 9092, connectTimeout: 15000, requestTimeout: 15000 });
+  const subscriber = new Client({ host: 'localhost', port: 9092, connectTimeout: 15000, requestTimeout: 15000 });
 
   console.log('2. Connecting clients...');
   await publisher.connect();

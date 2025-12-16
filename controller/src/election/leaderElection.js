@@ -1,7 +1,9 @@
 'use strict';
 
+import { createSocket } from 'dgram';
 import { NODE_STATES, ELECTION_TYPES, HEARTBEAT_INTERVALS, createElectionMessage } from '../../../shared/protocol/clusterTypes.js';
 import { Logger } from '../../../shared/utils/logger.js';
+import { HeartbeatSender } from '../state/heartbeatSender.js';
 
 class LeaderElection {
   constructor(options = {}) {
@@ -10,7 +12,13 @@ class LeaderElection {
     }
 
     this.nodeRegistry = options.nodeRegistry;
+    this.controllerRegistry = options.controllerRegistry; // New: bridge to node registry
     this.logger = options.logger || new Logger({ name: 'leaderElection' });
+    
+    // Election communication config
+    this.electionPort = options.electionPort || 9093;
+    this.host = options.host || '0.0.0.0';
+    this.peers = options.peers || []; // Array of {host, port} for peer controllers
     
     this.currentTerm = 0;
     this.votedFor = null;
@@ -19,13 +27,84 @@ class LeaderElection {
     this.lastLeaderHeartbeat = Date.now();
     
     this.electionTimeout = null;
-    this.heartbeatInterval = null;
+    this.socket = null;
     
     this.votes = new Set();
     this.electionInProgress = false;
     this.closed = false;
     
+    // Initialize heartbeat sender (NEW)
+    this.heartbeatSender = new HeartbeatSender({
+      logger: this.logger.child({ component: 'heartbeatSender' }),
+      peers: this.peers,
+      onSendHeartbeat: () => this._getHeartbeatData()
+    });
+    
     this._startElectionTimer();
+  }
+
+  /**
+   * Initialize UDP socket for election communication
+   */
+  async initialize() {
+    if (this.socket) {
+      return;
+    }
+
+    return new Promise((resolve, reject) => {
+      this.socket = createSocket('udp4');
+
+      this.socket.on('message', (msg, rinfo) => {
+        this._handleElectionMessage(msg, rinfo);
+      });
+
+      this.socket.on('error', (err) => {
+        this.logger.error('Election socket error', err);
+        if (!this.closed) {
+          reject(err);
+        }
+      });
+
+      this.socket.bind(this.electionPort, this.host, () => {
+        this.logger.info('Election socket initialized', {
+          host: this.host,
+          port: this.electionPort,
+          peersCount: this.peers.length
+        });
+        
+        // Share socket with heartbeat sender (NEW)
+        this.heartbeatSender.setSocket(this.socket);
+        
+        // If we have peers (multi-controller setup), trigger election immediately
+        if (this.peers.length > 0) {
+          this.logger.info('Multi-controller setup detected, starting election', {
+            peersCount: this.peers.length,
+            peerAddresses: this.peers.map(p => `${p.host}:${p.port}`).join(',')
+          });
+          
+          // Start election after a short delay to allow all controllers to initialize
+          setTimeout(() => {
+            if (!this.closed && !this.electionInProgress) {
+              this.startElection();
+            }
+          }, 2000);
+        }
+        
+        resolve();
+      });
+    });
+  }
+
+  /**
+   * Set peer controllers for election communication
+   */
+  setPeers(peers) {
+    this.peers = peers || [];
+    this.heartbeatSender.setPeers(this.peers); // NEW: update heartbeat sender too
+    this.logger.debug('Peers configured for election', {
+      peerCount: this.peers.length,
+      peers: this.peers.map(p => `${p.host}:${p.port}`).join(',')
+    });
   }
 
   getCurrentTerm() {
@@ -126,10 +205,12 @@ class LeaderElection {
     if (term === this.currentTerm && voteGranted) {
       this.votes.add(nodeId);
       
-      this.logger.debug('Vote received', {
+      this.logger.info('Vote response received', {
         nodeId,
+        voteGranted,
         totalVotes: this.votes.size,
-        required: this._getRequiredVotes()
+        required: this._getRequiredVotes(),
+        term: this.currentTerm
       });
 
       if (this.votes.size >= this._getRequiredVotes()) {
@@ -161,10 +242,9 @@ class LeaderElection {
       
       this._resetElectionTimer();
       
-      try {
-        this.nodeRegistry.updateNodeState(leaderId, NODE_STATES.LEADER, term);
-      } catch (err) {
-        this.logger.error('Failed to update node registry', err);
+      // Update controller registry with new leader (NEW)
+      if (this.controllerRegistry) {
+        this.controllerRegistry.handleHeartbeatReceived(leaderId);
       }
       
       this.logger.debug('Leader heartbeat received', {
@@ -185,7 +265,7 @@ class LeaderElection {
       this.leaderId = null;
       this.electionInProgress = false;
       
-      this._clearHeartbeatTimer();
+      this.heartbeatSender.stopHeartbeats(); // NEW: stop sending heartbeats
       this._startElectionTimer();
     }
   }
@@ -212,22 +292,55 @@ class LeaderElection {
   }
 
   _requestVotes() {
-    const brokers = this.nodeRegistry.getAllNodes();
-    
-    this.logger.debug('Requesting votes from brokers', {
-      brokerCount: brokers.length,
-      term: this.currentTerm
-    });
-    
-    for (const broker of brokers) {
-      if (broker.nodeId === 'self') {
-        continue;
+    if (!this.socket) {
+      this.logger.warn('Election socket not initialized, cannot request votes');
+      return;
+    }
+
+    const message = createElectionMessage(
+      ELECTION_TYPES.VOTE_REQUEST,
+      this.currentTerm,
+      'self',
+      {
+        lastLogIndex: 0,
+        lastLogTerm: 0
       }
-      
-      this.logger.trace('Vote request', {
-        nodeId: broker.nodeId,
-        term: this.currentTerm
-      });
+    );
+
+    const buffer = Buffer.from(JSON.stringify(message));
+
+    this.logger.info('Requesting votes from peers', {
+      peerCount: this.peers.length,
+      term: this.currentTerm,
+      peers: this.peers.map(p => `${p.host}:${p.port}`).join(',')
+    });
+
+    if (this.peers.length === 0) {
+      this.logger.warn('No peers configured, cannot request votes');
+      return;
+    }
+
+    for (const peer of this.peers) {
+      try {
+        this.socket.send(buffer, 0, buffer.length, peer.port, peer.host, (err) => {
+          if (err) {
+            this.logger.warn('Failed to send vote request', {
+              peer: `${peer.host}:${peer.port}`,
+              error: err.message
+            });
+          } else {
+            this.logger.trace('Vote request sent', {
+              peer: `${peer.host}:${peer.port}`,
+              term: this.currentTerm
+            });
+          }
+        });
+      } catch (err) {
+        this.logger.error('Error sending vote request', {
+          peer: `${peer.host}:${peer.port}`,
+          error: err.message
+        });
+      }
     }
   }
 
@@ -243,67 +356,77 @@ class LeaderElection {
     this.electionInProgress = false;
     
     this._clearElectionTimer();
-    this._startLeaderHeartbeats();
+    
+    // Start sending heartbeats to followers (NEW - CRITICAL FIX)
+    this.heartbeatSender.startHeartbeats();
+    
     this._announceLeadership();
+    
+    // Update controller registry (NEW)
+    if (this.controllerRegistry) {
+      this.controllerRegistry.handleLeaderElected(this.leaderId, this.currentTerm);
+    }
   }
 
   _startLeaderHeartbeats() {
-    this._clearHeartbeatTimer();
-    
-    this.heartbeatInterval = setInterval(() => {
-      if (!this.closed && this.state === NODE_STATES.LEADER) {
-        this._sendHeartbeats();
-      }
-    }, HEARTBEAT_INTERVALS.LEADER_TO_FOLLOWERS);
-
-    if (this.heartbeatInterval.unref) {
-      this.heartbeatInterval.unref();
-    }
+    // REMOVED - Now using HeartbeatSender.startHeartbeats()
+    // This method is no longer used
   }
 
   _sendHeartbeats() {
-    const brokers = this.nodeRegistry.getBrokerNodes();
-    
-    this.logger.trace('Sending leader heartbeats', {
-      term: this.currentTerm,
-      brokerCount: brokers.length
-    });
-    
-    for (const broker of brokers) {
-      if (broker.nodeId === 'self') {
-        continue;
-      }
-
-      try {
-        this.nodeRegistry.updateNodeState(broker.nodeId, NODE_STATES.FOLLOWER, this.currentTerm);
-      } catch (err) {
-        this.logger.error('Failed to update broker state', { nodeId: broker.nodeId, err });
-      }
-    }
+    // REMOVED - Now using HeartbeatSender
+    // This method is no longer used
   }
 
   _announceLeadership() {
-    const brokers = this.nodeRegistry.getBrokerNodes();
-    
-    this.logger.info('Announcing leadership to brokers', {
+    if (!this.socket) {
+      this.logger.warn('Election socket not initialized, cannot announce leadership');
+      return;
+    }
+
+    // Announce leadership to all peer controllers
+    const message = createElectionMessage(
+      ELECTION_TYPES.LEADER_ANNOUNCEMENT,
+      this.currentTerm,
+      'self'
+    );
+
+    const buffer = Buffer.from(JSON.stringify(message));
+
+    this.logger.info('Announcing leadership to peer controllers', {
       term: this.currentTerm,
-      brokerCount: brokers.length
+      peerCount: this.peers.length
     });
-    
-    for (const broker of brokers) {
-      if (broker.nodeId !== 'self') {
-        try {
-          this.nodeRegistry.updateNodeState(broker.nodeId, NODE_STATES.FOLLOWER, this.currentTerm);
-        } catch (err) {
-          this.logger.error('Failed to announce leadership to broker', { nodeId: broker.nodeId, err });
-        }
+
+    for (const peer of this.peers) {
+      try {
+        this.socket.send(buffer, 0, buffer.length, peer.port, peer.host, (err) => {
+          if (err) {
+            this.logger.warn('Failed to announce leadership', {
+              peer: `${peer.host}:${peer.port}`,
+              error: err.message
+            });
+          } else {
+            this.logger.trace('Leadership announced', {
+              peer: `${peer.host}:${peer.port}`,
+              term: this.currentTerm
+            });
+          }
+        });
+      } catch (err) {
+        this.logger.error('Error announcing leadership', {
+          peer: `${peer.host}:${peer.port}`,
+          error: err.message
+        });
       }
     }
   }
 
   _getRequiredVotes() {
-    const totalNodes = this.nodeRegistry.getBrokerNodes().length;
-    return Math.floor(totalNodes / 2) + 1;
+    // For controllers, we need quorum among controllers, not brokers
+    // Total controllers = number of peers + 1 (self)
+    const totalControllers = this.peers.length + 1;
+    return Math.floor(totalControllers / 2) + 1;
   }
 
   _startElectionTimer() {
@@ -355,17 +478,102 @@ class LeaderElection {
     }
   }
 
-  _clearHeartbeatTimer() {
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
-      this.heartbeatInterval = null;
+  /**
+   * Get current heartbeat data for leader to send to followers
+   */
+  _getHeartbeatData() {
+    return {
+      term: this.currentTerm,
+      leaderId: 'self',
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * Handle incoming election message from peer controller
+   */
+  _handleElectionMessage(buffer, rinfo) {
+    if (this.closed) {
+      return;
+    }
+
+    try {
+      const message = JSON.parse(buffer.toString('utf-8'));
+      const { type, term, candidateId } = message;
+
+      if (!type || typeof term !== 'number' || !candidateId) {
+        this.logger.warn('Invalid election message format', { rinfo });
+        return;
+      }
+
+      this.logger.info('Election message received', {
+        type,
+        candidateId,
+        term,
+        electionState: this.state,
+        electionInProgress: this.electionInProgress
+      });
+
+      if (type === ELECTION_TYPES.VOTE_REQUEST) {
+        const voteGranted = this.handleVoteRequest(candidateId, term, message.lastLogIndex, message.lastLogTerm);
+        
+        // Send vote response
+        const response = createElectionMessage(
+          ELECTION_TYPES.VOTE_RESPONSE,
+          this.currentTerm,
+          'self',
+          { voteGranted }
+        );
+        
+        const responseBuffer = Buffer.from(JSON.stringify(response));
+        this.socket.send(responseBuffer, 0, responseBuffer.length, rinfo.port, rinfo.address, (err) => {
+          if (err) {
+            this.logger.warn('Failed to send vote response', {
+              peer: `${rinfo.address}:${rinfo.port}`,
+              error: err.message
+            });
+          } else {
+            this.logger.info('Vote response sent', {
+              peer: `${rinfo.address}:${rinfo.port}`,
+              voteGranted,
+              term: this.currentTerm
+            });
+          }
+        });
+      } else if (type === ELECTION_TYPES.VOTE_RESPONSE) {
+        // Use source address:port as the peer identifier, since candidateId is just "self"
+        const peerId = `${rinfo.address}:${rinfo.port}`;
+        this.handleVoteResponse(peerId, term, message.voteGranted);
+      } else if (type === ELECTION_TYPES.LEADER_ANNOUNCEMENT) {
+        // Use source address:port as the leader identifier, since candidateId is just "self"
+        const leaderId = `${rinfo.address}:${rinfo.port}`;
+        this.handleLeaderHeartbeat(leaderId, term);
+      } else if (type === ELECTION_TYPES.LEADER_HEARTBEAT) {
+        // Handle periodic leader heartbeats (NEW)
+        const leaderId = `${rinfo.address}:${rinfo.port}`;
+        this.handleLeaderHeartbeat(leaderId, term);
+      } else {
+        this.logger.warn('Unknown election message type', { type });
+      }
+    } catch (err) {
+      this.logger.error('Error processing election message', { error: err.message });
     }
   }
 
   close() {
     this.closed = true;
     this._clearElectionTimer();
-    this._clearHeartbeatTimer();
+    this.heartbeatSender.close(); // NEW: close heartbeat sender
+    
+    if (this.socket) {
+      try {
+        this.socket.close();
+      } catch (err) {
+        this.logger.error('Error closing election socket', err);
+      }
+      this.socket = null;
+    }
+    
     this.votes.clear();
     this.logger.debug('LeaderElection closed');
   }

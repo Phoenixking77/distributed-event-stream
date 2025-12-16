@@ -3,6 +3,7 @@
 import { Logger } from '../../shared/utils/logger.js';
 import { NodeRegistry } from './metadata/nodeRegistry.js';
 import { TopicManager } from './metadata/topicManager.js';
+import { ControllerRegistry } from './metadata/controllerRegistry.js'; // NEW
 import { LeaderElection } from './election/leaderElection.js';
 import { UDPHeartbeatListener } from './server/udpHeartbeatListener.js';
 import { HTTPApi } from './server/httpApi.js';
@@ -29,6 +30,23 @@ class Controller {
       host: opts.host || '0.0.0.0'
     };
 
+    // Parse peer controllers from CONTROLLER_PEERS env var (format: "host1:port1,host2:port2")
+    const peerString = opts.peers || process.env.CONTROLLER_PEERS || '';
+    const peers = peerString
+      .split(',')
+      .map(s => s.trim())
+      .filter(s => s.length > 0)
+      .map(s => {
+        const [host, port] = s.split(':');
+        return { host, port: parseInt(port, 10) };
+      });
+
+    this.logger.debug('Parsed peer controllers', {
+      peerString,
+      peers: peers.map(p => `${p.host}:${p.port}`).join(','),
+      count: peers.length
+    });
+
     // Core components
     this.nodeRegistry = new NodeRegistry({
       logger: this.logger.child({ component: 'nodeRegistry' }),
@@ -47,9 +65,22 @@ class Controller {
       logger: this.logger.child({ component: 'leaderElection' }),
       nodeRegistry: this.nodeRegistry,
       electionPort: this.config.electionPort,
+      host: this.config.host,
+      peers: peers,
       electionTimeout: opts.electionTimeout,
       leaderCheckInterval: opts.leaderCheckInterval
     });
+
+    // Initialize controller registry (NEW - bridges election and node registry)
+    this.controllerRegistry = new ControllerRegistry({
+      logger: this.logger.child({ component: 'controllerRegistry' }),
+      nodeRegistry: this.nodeRegistry,
+      leaderElection: this.leaderElection,
+      peers: peers
+    });
+
+    // Link controller registry to leader election (NEW)
+    this.leaderElection.controllerRegistry = this.controllerRegistry;
 
     this.heartbeatListener = new UDPHeartbeatListener({
       logger: this.logger.child({ component: 'udpHeartbeatListener' }),
@@ -110,6 +141,15 @@ class Controller {
       // Initialize node registry
       this.nodeRegistry.initialize();
 
+      // Generate self ID (NEW - for controller registry)
+      const selfId = `${this.config.host}:${this.config.electionPort}`;
+      
+      // Initialize controller registry to register self and peers (NEW - CRITICAL)
+      this.controllerRegistry.initialize(selfId);
+
+      // Initialize election socket for leader election
+      await this.leaderElection.initialize();
+
       // Start heartbeat listener
       await this.heartbeatListener.start();
 
@@ -124,7 +164,8 @@ class Controller {
       this.logger.info('Controller started successfully', {
         heartbeatPort: this.config.heartbeatPort,
         electionPort: this.config.electionPort,
-        httpPort: this.config.httpPort
+        httpPort: this.config.httpPort,
+        selfId: selfId // NEW
       });
 
       this._logClusterState();
@@ -230,7 +271,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     heartbeatPort: process.env.HEARTBEAT_PORT || 9091,
     electionPort: process.env.ELECTION_PORT || 9093,
     httpPort: process.env.HTTP_PORT || 8080,
-    host: process.env.HOST || '0.0.0.0'
+    host: process.env.HOST || '0.0.0.0',
+    peers: process.env.CONTROLLER_PEERS
   });
 
   controller.start().catch(err => {
