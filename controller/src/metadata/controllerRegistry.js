@@ -33,7 +33,7 @@ class ControllerRegistry {
 
   /**
    * Initialize controller registration
-   * Registers self and all peer controllers as nodes
+   * Registers all peer controllers (NOT self, since controller doesn't send heartbeats)
    */
   initialize(selfId) {
     if (this.initialized) {
@@ -42,15 +42,12 @@ class ControllerRegistry {
 
     this.selfId = selfId;
 
-    // Register self as a controller node
-    this.nodeRegistry.registerHeartbeat(this.selfId, {
-      type: 'controller',
-      role: 'self',
-      registeredAt: Date.now()
-    });
+    // DO NOT register self in nodeRegistry - controller doesn't send heartbeats to itself
+    // Only broker nodes should be registered in nodeRegistry for health checks
 
-    this.logger.info('Controller self-registered', {
-      nodeId: this.selfId
+    this.logger.info('Controller registry initialized', {
+      selfId: this.selfId,
+      peerCount: this.peers.length
     });
 
     // Register all peer controllers
@@ -100,10 +97,41 @@ class ControllerRegistry {
         leaderId,
         term
       });
+
+      // If this controller is elected as leader, promote a broker leader too
+      if (leaderId === this.selfId) {
+        this.promoteBrokerLeader();
+      }
     } else {
       this.logger.warn('Unknown controller elected as leader', {
         leaderId,
         term
+      });
+    }
+  }
+
+  /**
+   * Promote the first alive broker to be the broker leader
+   */
+  promoteBrokerLeader() {
+    const aliveNodes = this.nodeRegistry.getAliveNodes();
+    const brokers = aliveNodes.filter(node => 
+      node.metadata && node.metadata.nodeType === 'broker'
+    );
+
+    if (brokers.length === 0) {
+      this.logger.warn('No alive brokers to promote as leader');
+      return;
+    }
+
+    // Select the first broker as leader
+    const selectedBroker = brokers[0];
+    const updated = this.nodeRegistry.updateNodeState(selectedBroker.nodeId, NODE_STATES.LEADER);
+
+    if (updated) {
+      this.logger.info('Broker promoted to leader', {
+        brokerId: selectedBroker.nodeId,
+        brokerPort: selectedBroker.metadata.port
       });
     }
   }

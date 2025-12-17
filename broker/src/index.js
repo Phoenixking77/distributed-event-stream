@@ -1,5 +1,6 @@
 'use strict';
 
+import http from 'http';
 import { TcpServer } from './server/tcpServer.js';
 import { BrokerState } from './state/brokerState.js';
 import { Heartbeat } from './state/heartbeat.js';
@@ -17,6 +18,13 @@ class Broker {
 
     this.brokerId = opts.brokerId || `broker-${Date.now()}`;
     this.nodeState = NODE_STATES.FOLLOWER;
+
+    // Allow port override from options or environment
+    if (opts.port) {
+      this.config.broker.port = opts.port;
+    } else if (process.env.BROKER_PORT) {
+      this.config.broker.port = parseInt(process.env.BROKER_PORT, 10);
+    }
 
     this.brokerState = new BrokerState({
       dataDir: this.config.broker.dataDir,
@@ -43,7 +51,7 @@ class Broker {
       brokerHost: this.config.broker.host,
       brokerPort: this.config.broker.port,
       controllerHost: this.config.controller.host,
-      controllerPort: this.config.controller.port || 9091,
+      controllerPort: this.config.controller.heartbeatPort || 9091,
       electionPort: opts.electionPort || 9093,
       interval: this.config.heartbeat?.interval,
       brokerState: this.brokerState,
@@ -80,6 +88,7 @@ class Broker {
     this.running = true;
 
     this._setupSignalHandlers();
+    this._startLeaderStatusCheck();
 
     this.logger.info('Broker started successfully', {
       brokerId: this.brokerId,
@@ -152,6 +161,59 @@ class Broker {
     this.brokerState.close();
 
     this.logger.info('Broker stopped');
+  }
+
+  _startLeaderStatusCheck() {
+    // Check leader status every 5 seconds
+    setInterval(() => {
+      this._checkLeaderStatus();
+    }, 5000);
+  }
+
+  async _checkLeaderStatus() {
+    try {
+      const controllerHost = this.config.controller.host || 'localhost';
+      const controllerPort = this.config.controller.httpPort || 8080;
+
+      const response = await new Promise((resolve, reject) => {
+        const req = http.get(
+          `http://${controllerHost}:${controllerPort}/cluster/nodes`,
+          (res) => {
+            let data = '';
+            res.on('data', chunk => { data += chunk; });
+            res.on('end', () => {
+              try {
+                resolve(JSON.parse(data));
+              } catch (e) {
+                reject(e);
+              }
+            });
+          }
+        );
+        req.on('error', reject);
+        req.setTimeout(2000, () => {
+          req.destroy();
+          reject(new Error('Request timeout'));
+        });
+      });
+
+      const nodes = response.nodes || [];
+      const myNode = nodes.find(node => node.nodeId === this.brokerId);
+      if (!myNode) return;
+
+      const isCurrentlyLeader = this.nodeState === NODE_STATES.LEADER;
+      const shouldBeLeader = myNode.state === NODE_STATES.LEADER || myNode.isLeader === true;
+
+      if (shouldBeLeader && !isCurrentlyLeader) {
+        this.logger.info('Controller selected this broker as leader');
+        await this.promoteToLeader();
+      } else if (!shouldBeLeader && isCurrentlyLeader) {
+        this.logger.info('Controller demoted this broker from leader');
+        await this.demoteToFollower();
+      }
+    } catch (err) {
+      // Silently ignore errors in status check
+    }
   }
 
   _setupSignalHandlers() {

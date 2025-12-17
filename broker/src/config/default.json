@@ -10,7 +10,8 @@
   },
   "controller": {
     "host": "localhost",
-    "port": 8080
+    "heartbeatPort": 9091,
+    "httpPort": 8080
   },
   "heartbeat": {
     "interval": 5000,

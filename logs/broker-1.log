@@ -1,13 +1,4 @@
-{"ts":"2025-12-16T06:22:35.366Z","level":"info","msg":"Starting broker","pid":37688,"logger":"broker","brokerId":"broker-37688","port":9092,"dataDir":"./data","nodeState":"follower"}
-{"ts":"2025-12-16T06:22:35.370Z","level":"error","msg":{"err":{"message":"listen EADDRINUSE: address already in use 0.0.0.0:9092","name":"Error","stack":"Error: listen EADDRINUSE: address already in use 0.0.0.0:9092\n    at Server.setupListenHandle [as _listen2] (node:net:1940:16)\n    at listenInCluster (node:net:1997:12)\n    at node:net:2206:7\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)","code":"EADDRINUSE","errno":-48,"syscall":"listen","address":"0.0.0.0","port":9092},"msg":"Server error"},"pid":37688,"logger":"broker"}
-Failed to start broker: Error: listen EADDRINUSE: address already in use 0.0.0.0:9092
-    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
-    at listenInCluster (node:net:1997:12)
-    at node:net:2206:7
-    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
-  code: 'EADDRINUSE',
-  errno: -48,
-  syscall: 'listen',
-  address: '0.0.0.0',
-  port: 9092
-}
+{"ts":"2025-12-17T02:43:42.867Z","level":"info","msg":"Starting broker","pid":76830,"logger":"broker","brokerId":"broker-1","port":9093,"dataDir":"./data","nodeState":"follower"}
+{"ts":"2025-12-17T02:43:42.871Z","level":"info","msg":"TCP server listening","pid":76830,"logger":"broker","host":"0.0.0.0","port":9093}
+{"ts":"2025-12-17T02:43:42.871Z","level":"info","msg":"Starting heartbeat","pid":76830,"logger":"broker","brokerId":"broker-1","controllerHost":"localhost","controllerPort":9091,"interval":5000}
+{"ts":"2025-12-17T02:43:42.872Z","level":"info","msg":"Broker started successfully","pid":76830,"logger":"broker","brokerId":"broker-1","nodeState":"follower"}
