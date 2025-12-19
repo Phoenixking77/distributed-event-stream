@@ -136,7 +136,13 @@ class LeaderElection {
     });
 
     this._requestVotes();
-    this._setElectionTimeoutTimer();
+    
+    // Check if we already have quorum (single controller or no peers)
+    if (this.votes.size >= this._getRequiredVotes()) {
+      this._becomeLeader();
+    } else {
+      this._setElectionTimeoutTimer();
+    }
   }
 
   handleVoteRequest(candidateId, term, lastLogIndex = 0, lastLogTerm = 0) {

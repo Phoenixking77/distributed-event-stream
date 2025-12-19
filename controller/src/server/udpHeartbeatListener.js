@@ -52,6 +52,18 @@ class UDPHeartbeatListener {
       });
 
       this.socket.on('error', (err) => {
+        // If EADDRINUSE, just log and resolve anyway - another controller is listening
+        if (err.code === 'EADDRINUSE') {
+          this.logger.info('Heartbeat port already in use by another controller, delegating to peer', {
+            host: this.host,
+            port: this.port,
+            error: err.message
+          });
+          this.socket = null; // Mark as not listening locally
+          resolve();
+          return;
+        }
+
         this.logger.error('Heartbeat socket error', err);
         if (!this.closed) {
           reject(err);
