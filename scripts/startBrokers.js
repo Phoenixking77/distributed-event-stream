@@ -11,7 +11,9 @@ class BrokerOrchestrator {
     this.numBrokers = opts.numBrokers || 3;
     this.basePort = opts.basePort || 9092;
     this.host = opts.host || '0.0.0.0';
+    this.controllerHost = opts.controllerHost || 'localhost';
     this.controllerPort = opts.controllerPort || 8080;
+    this.controllerHeartbeatPort = opts.controllerHeartbeatPort || 9001;
     
     this.processes = new Map();
     this.running = false;
@@ -21,7 +23,9 @@ class BrokerOrchestrator {
     logger.info('Starting brokers', {
       numBrokers: this.numBrokers,
       basePort: this.basePort,
-      controllerPort: this.controllerPort
+      controllerHost: this.controllerHost,
+      controllerPort: this.controllerPort,
+      controllerHeartbeatPort: this.controllerHeartbeatPort
     });
 
     this.running = true;
@@ -35,8 +39,12 @@ class BrokerOrchestrator {
       console.log('\n' + '='.repeat(80));
       console.log('✅ BROKERS STARTED');
       console.log('='.repeat(80));
+      console.log(`\nController Connection:`);
+      console.log(`  Host: ${this.controllerHost}`);
+      console.log(`  HTTP Port: ${this.controllerPort}`);
+      console.log(`  Heartbeat Port: ${this.controllerHeartbeatPort}\n`);
       for (let i = 0; i < this.numBrokers; i++) {
-        console.log(`Broker ${i + 1}: localhost:${this.basePort + i}`);
+        console.log(`Broker ${i + 1}: ${this.host}:${this.basePort + i}`);
       }
       console.log('='.repeat(80) + '\n');
 
@@ -57,7 +65,10 @@ class BrokerOrchestrator {
       stdio: 'inherit',
       env: {
         ...process.env,
-        BROKER_PORT: port.toString()
+        BROKER_PORT: port.toString(),
+        CONTROLLER_HOST: this.controllerHost,
+        CONTROLLER_PORT: this.controllerPort,
+        CONTROLLER_HEARTBEAT_PORT: this.controllerHeartbeatPort.toString()
       }
     });
 

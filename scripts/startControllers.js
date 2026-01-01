@@ -74,13 +74,16 @@ class ControllerOrchestrator {
       console.log('='.repeat(80));
       console.log(`\nStarted ${this.numControllers} controllers with peer configuration:\n`);
       
+      const sharedHeartbeatPort = this.baseHeartbeatPort; // All controllers share this port
+      console.log(`🔔 SHARED HEARTBEAT PORT: ${sharedHeartbeatPort}`);
+      console.log(`   (All brokers send heartbeats to this port)\n`);
+      
       for (let i = 0; i < this.numControllers; i++) {
         const httpPort = this.baseHttpPort + i;
-        const heartbeatPort = this.baseHeartbeatPort + i;
         const electionPort = this.baseElectionPort + i;
         console.log(`Controller ${i + 1}:`);
         console.log(`  HTTP API:        http://${this.host}:${httpPort}`);
-        console.log(`  Heartbeat Port:  ${heartbeatPort}`);
+        console.log(`  Heartbeat Port:  ${sharedHeartbeatPort}`);
         console.log(`  Election Port:   ${electionPort}`);
         console.log();
       }
@@ -118,7 +121,7 @@ class ControllerOrchestrator {
    */
   async _startController(index, allPeers) {
     const httpPort = this.baseHttpPort + index;
-    const heartbeatPort = this.baseHeartbeatPort + index;
+    const heartbeatPort = this.baseHeartbeatPort; // FIXED: All controllers listen on same heartbeat port
     const electionPort = this.baseElectionPort + index;
     const peersString = this._formatPeersEnv(allPeers, index);
 
@@ -138,6 +141,8 @@ class ControllerOrchestrator {
         HEARTBEAT_PORT: heartbeatPort,
         ELECTION_PORT: electionPort,
         CONTROLLER_PEERS: peersString,
+        // Force the first controller to be the static leader
+        FORCE_LEADER: (index === 0) ? 'true' : 'false',
         DATA_DIR: './data'
       }
     });

@@ -86,10 +86,14 @@ class HeartbeatSender {
     // Get current heartbeat data from the election module
     const heartbeatData = this.onSendHeartbeat();
 
+    // Use the real leader id as the message's candidateId so receivers can
+    // reliably identify who the leader is (avoid the legacy literal 'self').
+    const leaderIdForMsg = heartbeatData.leaderId || heartbeatData.candidateId || 'unknown';
+
     const message = createElectionMessage(
       ELECTION_TYPES.LEADER_HEARTBEAT,
       heartbeatData.term,
-      'self',
+      leaderIdForMsg,
       {
         leaderId: heartbeatData.leaderId,
         timestamp: Date.now()

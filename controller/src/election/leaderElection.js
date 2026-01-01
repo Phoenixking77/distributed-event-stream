@@ -32,6 +32,8 @@ class LeaderElection {
     this.votes = new Set();
     this.electionInProgress = false;
     this.closed = false;
+    // Self identifier used in election messages (host:port)
+    this.selfId = options.selfId || `${this.host}:${this.electionPort}`;
     
     // Initialize heartbeat sender (NEW)
     this.heartbeatSender = new HeartbeatSender({
@@ -39,8 +41,13 @@ class LeaderElection {
       peers: this.peers,
       onSendHeartbeat: () => this._getHeartbeatData()
     });
-    
-    this._startElectionTimer();
+
+    // Force this controller to be leader when configured (useful for single static leader)
+    this.forceLeader = !!options.forceLeader;
+
+    if (!this.forceLeader) {
+      this._startElectionTimer();
+    }
   }
 
   /**
@@ -76,7 +83,7 @@ class LeaderElection {
         this.heartbeatSender.setSocket(this.socket);
         
         // If we have peers (multi-controller setup), trigger election immediately
-        if (this.peers.length > 0) {
+        if (this.peers.length > 0 && !this.forceLeader) {
           this.logger.info('Multi-controller setup detected, starting election', {
             peersCount: this.peers.length,
             peerAddresses: this.peers.map(p => `${p.host}:${p.port}`).join(',')
@@ -88,6 +95,14 @@ class LeaderElection {
               this.startElection();
             }
           }, 2000);
+        }
+
+        // If configured to force leader, immediately become leader and announce
+        if (this.forceLeader) {
+          this.logger.info('Force-leader mode enabled, becoming leader immediately', { selfId: this.selfId });
+          // ensure term increments so followers see a higher term
+          this.currentTerm = Math.max(this.currentTerm + 1, 1);
+          this._becomeLeader();
         }
         
         resolve();
@@ -128,11 +143,11 @@ class LeaderElection {
     this.votes.clear();
     this.leaderId = null;
     
-    this.votes.add('self');
+    this.votes.add(this.selfId);
     
     this.logger.info('Starting leader election', {
       term: this.currentTerm,
-      candidateId: 'self'
+      candidateId: this.selfId
     });
 
     this._requestVotes();
@@ -306,7 +321,7 @@ class LeaderElection {
     const message = createElectionMessage(
       ELECTION_TYPES.VOTE_REQUEST,
       this.currentTerm,
-      'self',
+      this.selfId,
       {
         lastLogIndex: 0,
         lastLogTerm: 0
@@ -358,7 +373,7 @@ class LeaderElection {
     });
 
     this.state = NODE_STATES.LEADER;
-    this.leaderId = 'self';
+    this.leaderId = this.selfId;
     this.electionInProgress = false;
     
     this._clearElectionTimer();
@@ -394,7 +409,7 @@ class LeaderElection {
     const message = createElectionMessage(
       ELECTION_TYPES.LEADER_ANNOUNCEMENT,
       this.currentTerm,
-      'self'
+      this.selfId
     );
 
     const buffer = Buffer.from(JSON.stringify(message));
@@ -490,7 +505,7 @@ class LeaderElection {
   _getHeartbeatData() {
     return {
       term: this.currentTerm,
-      leaderId: 'self',
+      leaderId: this.selfId,
       timestamp: Date.now()
     };
   }
@@ -527,7 +542,7 @@ class LeaderElection {
         const response = createElectionMessage(
           ELECTION_TYPES.VOTE_RESPONSE,
           this.currentTerm,
-          'self',
+          this.selfId,
           { voteGranted }
         );
         
@@ -547,16 +562,16 @@ class LeaderElection {
           }
         });
       } else if (type === ELECTION_TYPES.VOTE_RESPONSE) {
-        // Use source address:port as the peer identifier, since candidateId is just "self"
-        const peerId = `${rinfo.address}:${rinfo.port}`;
+        // Prefer explicit candidateId from message (responder selfId); fall back to source addr
+        const peerId = message.candidateId || `${rinfo.address}:${rinfo.port}`;
         this.handleVoteResponse(peerId, term, message.voteGranted);
       } else if (type === ELECTION_TYPES.LEADER_ANNOUNCEMENT) {
-        // Use source address:port as the leader identifier, since candidateId is just "self"
-        const leaderId = `${rinfo.address}:${rinfo.port}`;
+        // Use announced leader id when available
+        const leaderId = message.leaderId || message.candidateId || `${rinfo.address}:${rinfo.port}`;
         this.handleLeaderHeartbeat(leaderId, term);
       } else if (type === ELECTION_TYPES.LEADER_HEARTBEAT) {
         // Handle periodic leader heartbeats (NEW)
-        const leaderId = `${rinfo.address}:${rinfo.port}`;
+        const leaderId = message.leaderId || message.candidateId || `${rinfo.address}:${rinfo.port}`;
         this.handleLeaderHeartbeat(leaderId, term);
       } else {
         this.logger.warn('Unknown election message type', { type });

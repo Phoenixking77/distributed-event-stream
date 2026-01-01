@@ -68,7 +68,9 @@ class Controller {
       host: this.config.host,
       peers: peers,
       electionTimeout: opts.electionTimeout,
-      leaderCheckInterval: opts.leaderCheckInterval
+      leaderCheckInterval: opts.leaderCheckInterval,
+      forceLeader: (process.env.FORCE_LEADER === 'true') || !!opts.forceLeader,
+      selfId: `${this.config.host}:${this.config.electionPort}`
     });
 
     // Initialize controller registry (NEW - bridges election and node registry)
@@ -142,10 +144,21 @@ class Controller {
       this.nodeRegistry.initialize();
 
       // Generate self ID (NEW - for controller registry)
-      const selfId = `${this.config.host}:${this.config.electionPort}`;
+      // Prefer an advertised host (env HOST or provided option) instead of 0.0.0.0
+      const advertisedHost = process.env.HOST ||
+        (this.leaderElection && this.leaderElection.peers && this.leaderElection.peers[0] && this.leaderElection.peers[0].host) ||
+        this.config.host ||
+        'localhost';
+
+      const selfId = `${advertisedHost}:${this.config.electionPort}`;
       
       // Initialize controller registry to register self and peers (NEW - CRITICAL)
       this.controllerRegistry.initialize(selfId);
+
+      // Ensure leaderElection knows the advertised self ID (may differ from 0.0.0.0)
+      if (this.leaderElection) {
+        this.leaderElection.selfId = selfId;
+      }
 
       // Initialize election socket for leader election
       await this.leaderElection.initialize();

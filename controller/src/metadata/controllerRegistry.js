@@ -42,8 +42,22 @@ class ControllerRegistry {
 
     this.selfId = selfId;
 
-    // DO NOT register self in nodeRegistry - controller doesn't send heartbeats to itself
-    // Only broker nodes should be registered in nodeRegistry for health checks
+    // Register self in nodeRegistry so controller state (leader) can be tracked
+    // even though it doesn't send heartbeats to itself. This makes forced-leader
+    // mode visible to the cluster health APIs.
+    const [selfHost, selfPortStr] = String(this.selfId).split(':');
+    const selfPort = parseInt(selfPortStr, 10) || null;
+
+    const existingSelf = this.nodeRegistry.getNode(this.selfId);
+    if (!existingSelf) {
+      this.nodeRegistry.registerHeartbeat(this.selfId, {
+        type: 'controller',
+        role: 'self',
+        host: selfHost,
+        port: selfPort,
+        registeredAt: Date.now()
+      });
+    }
 
     this.logger.info('Controller registry initialized', {
       selfId: this.selfId,
