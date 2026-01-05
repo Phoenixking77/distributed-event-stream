@@ -93,11 +93,23 @@ class Logger {
   }
 
   error(msg, context) {
-    this.log('error', context instanceof Error ? { err: serializeError(context), msg } : context || { err: msg });
+    if (context instanceof Error) {
+      this.log('error', msg, { err: serializeError(context) });
+    } else if (msg instanceof Error) {
+      this.log('error', msg.message, { err: serializeError(msg), ...context });
+    } else {
+      this.log('error', msg, context);
+    }
   }
 
   fatal(msg, context) {
-    this.log('fatal', context instanceof Error ? { err: serializeError(context), msg } : context || { err: msg });
+    if (context instanceof Error) {
+      this.log('fatal', msg, { err: serializeError(context) });
+    } else if (msg instanceof Error) {
+      this.log('fatal', msg.message, { err: serializeError(msg), ...context });
+    } else {
+      this.log('fatal', msg, context);
+    }
   }
 }
 

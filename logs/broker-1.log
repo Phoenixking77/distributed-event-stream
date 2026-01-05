@@ -1,4 +1,0 @@
-{"ts":"2025-12-17T02:43:42.867Z","level":"info","msg":"Starting broker","pid":76830,"logger":"broker","brokerId":"broker-1","port":9093,"dataDir":"./data","nodeState":"follower"}
-{"ts":"2025-12-17T02:43:42.871Z","level":"info","msg":"TCP server listening","pid":76830,"logger":"broker","host":"0.0.0.0","port":9093}
-{"ts":"2025-12-17T02:43:42.871Z","level":"info","msg":"Starting heartbeat","pid":76830,"logger":"broker","brokerId":"broker-1","controllerHost":"localhost","controllerPort":9091,"interval":5000}
-{"ts":"2025-12-17T02:43:42.872Z","level":"info","msg":"Broker started successfully","pid":76830,"logger":"broker","brokerId":"broker-1","nodeState":"follower"}
