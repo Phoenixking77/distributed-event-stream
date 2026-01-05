@@ -203,12 +203,14 @@ class HTTPApi {
     }
 
     this._sendResponse(res, 200, {
-      nodeId: leader.nodeId,
-      state: leader.state,
-      metadata: leader.metadata,
-      registeredAt: leader.registeredAt,
-      lastHeartbeat: leader.lastHeartbeat,
-      term: this.leaderElection ? this.leaderElection.getCurrentTerm() : null
+      leader: {
+        nodeId: leader.nodeId,
+        state: leader.state,
+        metadata: leader.metadata,
+        registeredAt: leader.registeredAt,
+        lastHeartbeat: leader.lastHeartbeat,
+        term: this.leaderElection ? this.leaderElection.getCurrentTerm() : null
+      }
     });
   }
 

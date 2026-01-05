@@ -28,7 +28,7 @@ class BrokerState {
       maxSegmentSize: this.logConfig.maxSegmentSize,
       syncInterval: this.logConfig.syncInterval,
       logger: this.logger.child({ topic: topicName })
-    });1
+    });
 
     await commitLog.initialize();
     this.topics.set(topicName, commitLog);
