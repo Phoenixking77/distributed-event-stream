@@ -68,6 +68,17 @@ class NodeRegistry {
       const wasAlive = existing.state !== NODE_STATES.DEAD;
       existing.lastHeartbeat = now;
       existing.metadata = { ...existing.metadata, ...metadata };
+      // Track heartbeat source to avoid false positives
+      existing.metadata.lastSeen = now;
+      if (metadata && metadata.heartbeatType) {
+        if (metadata.heartbeatType === 'leader') {
+          existing.metadata.lastLeaderHeartbeat = now;
+        } else if (metadata.heartbeatType === 'broker') {
+          existing.metadata.lastBrokerHeartbeat = now;
+        } else if (metadata.heartbeatType === 'registration') {
+          existing.metadata.lastRegistrationHeartbeat = now;
+        }
+      }
       existing.heartbeatCount += 1;
 
       // Check if node recovered from dead state
@@ -93,6 +104,16 @@ class NodeRegistry {
         metadata: metadata || {},
         isLeader: false
       };
+      node.metadata.lastSeen = now;
+      if (metadata && metadata.heartbeatType) {
+        if (metadata.heartbeatType === 'leader') {
+          node.metadata.lastLeaderHeartbeat = now;
+        } else if (metadata.heartbeatType === 'broker') {
+          node.metadata.lastBrokerHeartbeat = now;
+        } else if (metadata.heartbeatType === 'registration') {
+          node.metadata.lastRegistrationHeartbeat = now;
+        }
+      }
 
       this.nodes.set(nodeId, node);
       this.logger.info('New node registered', { nodeId, metadata });
@@ -317,10 +338,18 @@ class NodeRegistry {
         continue;
       }
 
-      if (node.lastHeartbeat < threshold) {
+      const lastActivity = Math.max(
+        node.metadata?.lastLeaderHeartbeat || 0,
+        node.metadata?.lastBrokerHeartbeat || 0,
+        node.metadata?.lastRegistrationHeartbeat || 0,
+        node.metadata?.lastSeen || 0,
+        node.lastHeartbeat || 0
+      );
+
+      if (lastActivity < threshold) {
         this.logger.warn('Node marked as dead (heartbeat timeout)', {
           nodeId,
-          lastHeartbeat: new Date(node.lastHeartbeat).toISOString(),
+          lastHeartbeat: new Date(lastActivity).toISOString(),
           timeoutMs: this.deadNodeTimeout
         });
 

@@ -159,7 +159,8 @@ class ControllerRegistry {
       // Update heartbeat timestamp and state
       this.nodeRegistry.registerHeartbeat(leaderId, {
         type: 'controller',
-        heartbeatReceived: Date.now()
+        heartbeatReceived: Date.now(),
+        heartbeatType: 'leader'
       });
 
       // Ensure leader state is correct

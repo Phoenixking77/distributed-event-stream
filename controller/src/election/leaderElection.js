@@ -22,6 +22,7 @@ class LeaderElection {
     
     this.currentTerm = 0;
     this.votedFor = null;
+    this.votedForTerm = 0;
     this.state = NODE_STATES.FOLLOWER;
     this.leaderId = null;
     this.lastLeaderHeartbeat = Date.now();
@@ -44,6 +45,8 @@ class LeaderElection {
 
     // Force this controller to be leader when configured (useful for single static leader)
     this.forceLeader = !!options.forceLeader;
+    this.electionTimeoutBase = options.electionTimeoutBase || HEARTBEAT_INTERVALS.ELECTION_TIMEOUT_BASE;
+    this.electionTimeoutRange = options.electionTimeoutRange || HEARTBEAT_INTERVALS.ELECTION_TIMEOUT_RANGE;
 
     if (!this.forceLeader) {
       this._startElectionTimer();
@@ -150,14 +153,19 @@ class LeaderElection {
       candidateId: this.selfId
     });
 
-    this._requestVotes();
+    // Add small jitter before requesting votes to reduce simultaneous broadcasts
+    // Add jitter before broadcasting vote requests to reduce simultaneous elections
+    const jitter = Math.random() * Math.max(this.electionTimeoutRange * 0.1, 50);
+    setTimeout(() => {
+      this._requestVotes();
     
-    // Check if we already have quorum (single controller or no peers)
-    if (this.votes.size >= this._getRequiredVotes()) {
-      this._becomeLeader();
-    } else {
-      this._setElectionTimeoutTimer();
-    }
+      // Check if we already have quorum (single controller or no peers)
+      if (this.votes.size >= this._getRequiredVotes()) {
+        this._becomeLeader();
+      } else {
+        this._setElectionTimeoutTimer();
+      }
+    }, jitter);
   }
 
   handleVoteRequest(candidateId, term, lastLogIndex = 0, lastLogTerm = 0) {
@@ -251,9 +259,30 @@ class LeaderElection {
     }
 
     if (term >= this.currentTerm) {
+      // Split-brain guard: if we are leader with same term and see another leader, tie-break
+      if (term === this.currentTerm && this.state === NODE_STATES.LEADER && leaderId !== this.selfId) {
+        const preferredLeader = [leaderId, this.selfId].sort()[0];
+        if (preferredLeader !== this.selfId) {
+          this.logger.warn('Detected competing leader, stepping down (tie-break)', {
+            currentLeader: this.selfId,
+            incomingLeader: leaderId,
+            term
+          });
+          this.stepDown();
+        } else {
+          this.logger.warn('Detected competing leader, retaining leadership via tie-break', {
+            currentLeader: this.selfId,
+            incomingLeader: leaderId,
+            term
+          });
+          return;
+        }
+      }
+
       if (term > this.currentTerm) {
         this.currentTerm = term;
         this.votedFor = null;
+        this.votedForTerm = 0;
       }
       
       this.state = NODE_STATES.FOLLOWER;
@@ -266,6 +295,13 @@ class LeaderElection {
       // Update controller registry with new leader (NEW)
       if (this.controllerRegistry) {
         this.controllerRegistry.handleHeartbeatReceived(leaderId);
+      }
+      // Update node registry heartbeat to avoid false dead detection
+      if (this.nodeRegistry) {
+        this.nodeRegistry.registerHeartbeat(leaderId, {
+          type: 'controller',
+          heartbeatType: 'leader'
+        });
       }
       
       this.logger.debug('Leader heartbeat received', {
@@ -366,6 +402,26 @@ class LeaderElection {
   }
 
   _becomeLeader() {
+    // If another leader is already recorded for this term, apply deterministic tie-break
+    if (this.nodeRegistry) {
+      const currentLeader = this.nodeRegistry.getLeader();
+      if (currentLeader && currentLeader.nodeId !== this.selfId) {
+        const preferredLeader = [currentLeader.nodeId, this.selfId].sort()[0];
+        if (preferredLeader !== this.selfId) {
+          this.logger.warn('Detected existing leader, stepping down due to tie-break', {
+            currentLeader: currentLeader.nodeId,
+            selfId: this.selfId,
+            term: this.currentTerm
+          });
+          this.state = NODE_STATES.FOLLOWER;
+          this.leaderId = currentLeader.nodeId;
+          this.electionInProgress = false;
+          this._resetElectionTimer();
+          return;
+        }
+      }
+    }
+
     this.logger.info('Elected as leader', {
       term: this.currentTerm,
       votes: this.votes.size,
@@ -453,13 +509,13 @@ class LeaderElection {
   _startElectionTimer() {
     this._clearElectionTimer();
     
-    const timeout = HEARTBEAT_INTERVALS.ELECTION_TIMEOUT + 
-                   Math.random() * 4000;
+    const timeout = this.electionTimeoutBase +
+                   Math.random() * this.electionTimeoutRange;
     
     this.electionTimeout = setTimeout(() => {
       if (!this.closed &&
           this.state === NODE_STATES.FOLLOWER && 
-          Date.now() - this.lastLeaderHeartbeat > HEARTBEAT_INTERVALS.ELECTION_TIMEOUT) {
+          Date.now() - this.lastLeaderHeartbeat > timeout) {
         this.logger.info('Election timeout, no leader heartbeat received');
         this.startElection();
       }
@@ -477,7 +533,8 @@ class LeaderElection {
   _setElectionTimeoutTimer() {
     this._clearElectionTimer();
 
-    const timeout = HEARTBEAT_INTERVALS.ELECTION_TIMEOUT;
+    const timeout = this.electionTimeoutBase +
+                   Math.random() * this.electionTimeoutRange;
     
     this.electionTimeout = setTimeout(() => {
       if (!this.closed && this.electionInProgress && this.state === NODE_STATES.CANDIDATE) {
