@@ -3,26 +3,16 @@
 import { Logger } from '../../shared/utils/logger.js';
 import { NodeRegistry } from './metadata/nodeRegistry.js';
 import { TopicManager } from './metadata/topicManager.js';
-import { ControllerRegistry } from './metadata/controllerRegistry.js'; // NEW
+import { ControllerRegistry } from './metadata/controllerRegistry.js';
 import { LeaderElection } from './election/leaderElection.js';
 import { UDPHeartbeatListener } from './server/udpHeartbeatListener.js';
 import { HTTPApi } from './server/httpApi.js';
 
-/**
- * Controller is the central coordinator for the distributed event streaming cluster.
- * Responsibilities:
- * - Track all broker nodes and their health
- * - Manage topic metadata and partition assignments
- * - Coordinate leader election
- * - Expose HTTP API for cluster queries
- * - Handle failover scenarios
- */
 class Controller {
   constructor(options) {
     const opts = options || {};
     this.logger = opts.logger || new Logger({ name: 'controller' });
     
-    // Configuration
     this.config = {
       heartbeatPort: opts.heartbeatPort || 9091,
       electionPort: opts.electionPort || 9093,
@@ -30,7 +20,6 @@ class Controller {
       host: opts.host || '0.0.0.0'
     };
 
-    // Parse peer controllers from CONTROLLER_PEERS env var (format: "host1:port1,host2:port2")
     const peerString = opts.peers || process.env.CONTROLLER_PEERS || '';
     const peers = peerString
       .split(',')
@@ -47,7 +36,6 @@ class Controller {
       count: peers.length
     });
 
-    // Core components
     this.nodeRegistry = new NodeRegistry({
       logger: this.logger.child({ component: 'nodeRegistry' }),
       deadNodeTimeout: opts.deadNodeTimeout,
@@ -73,7 +61,6 @@ class Controller {
       selfId: `${this.config.host}:${this.config.electionPort}`
     });
 
-    // Initialize controller registry (NEW - bridges election and node registry)
     this.controllerRegistry = new ControllerRegistry({
       logger: this.logger.child({ component: 'controllerRegistry' }),
       nodeRegistry: this.nodeRegistry,
@@ -81,7 +68,6 @@ class Controller {
       peers: peers
     });
 
-    // Link controller registry to leader election (NEW)
     this.leaderElection.controllerRegistry = this.controllerRegistry;
 
     this.heartbeatListener = new UDPHeartbeatListener({
@@ -108,9 +94,6 @@ class Controller {
     this._setupEventHandlers();
   }
 
-  /**
-   * Setup event handlers for node failures
-   */
   _setupEventHandlers() {
     this.nodeRegistry.on('nodeDied', ({ nodeId, oldState }) => {
       this.logger.warn('Node died, initiating failover', { nodeId, oldState });
@@ -126,9 +109,6 @@ class Controller {
     });
   }
 
-  /**
-   * Start the controller
-   */
   async start() {
     if (this.started) {
       throw new Error('Controller already started');
@@ -140,11 +120,8 @@ class Controller {
     this.logger.info('Starting controller', this.config);
 
     try {
-      // Initialize node registry
       this.nodeRegistry.initialize();
 
-      // Generate self ID (NEW - for controller registry)
-      // Prefer an advertised host (env HOST or provided option) instead of 0.0.0.0
       const advertisedHost = process.env.HOST ||
         (this.leaderElection && this.leaderElection.peers && this.leaderElection.peers[0] && this.leaderElection.peers[0].host) ||
         this.config.host ||
@@ -152,24 +129,14 @@ class Controller {
 
       const selfId = `${advertisedHost}:${this.config.electionPort}`;
       
-      // Initialize controller registry to register self and peers (NEW - CRITICAL)
       this.controllerRegistry.initialize(selfId);
 
-      // Ensure leaderElection knows the advertised self ID (may differ from 0.0.0.0)
       if (this.leaderElection) {
         this.leaderElection.selfId = selfId;
       }
 
-      // Initialize election socket for leader election
       await this.leaderElection.initialize();
-
-      // Start heartbeat listener
       await this.heartbeatListener.start();
-
-      // Leader election starts automatically when a heartbeat is missed
-      // No explicit initialization needed
-
-      // Start HTTP API
       await this.httpApi.start();
 
       this.started = true;
@@ -178,7 +145,7 @@ class Controller {
         heartbeatPort: this.config.heartbeatPort,
         electionPort: this.config.electionPort,
         httpPort: this.config.httpPort,
-        selfId: selfId // NEW
+        selfId: selfId
       });
 
       this._logClusterState();
@@ -190,9 +157,6 @@ class Controller {
     }
   }
 
-  /**
-   * Log current cluster state
-   */
   _logClusterState() {
     setTimeout(() => {
       if (this.closed) return;
@@ -214,9 +178,6 @@ class Controller {
     }, 30000);
   }
 
-  /**
-   * Get cluster status
-   */
   getStatus() {
     return {
       started: this.started,
@@ -228,9 +189,6 @@ class Controller {
     };
   }
 
-  /**
-   * Stop the controller
-   */
   async close() {
     if (this.closed) {
       return;
