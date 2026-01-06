@@ -72,7 +72,7 @@ class TcpClient extends EventEmitter {
         this.socket.removeListener('close', onClose);
         this.socket.destroy();
         reject(new Error('Connection timeout'));
-      }, 15000); // 15 second timeout for TCP connection
+      }, 15000);
 
       this.socket.on('connect', onConnect);
       this.socket.on('error', onError);

@@ -6,33 +6,6 @@ import { OPCODES } from '../../shared/protocol/packetTypes.js';
 import { Logger } from '../../shared/utils/logger.js';
 import { EventEmitter } from 'events';
 
-/**
- * @typedef {Object} PublishResult
- * @property {string} topic
- * @property {number} offset
- * @property {number} timestamp
- * @property {string} [partition]
- */
-
-/**
- * @typedef {Object} ConsumerGroupState
- * @property {string} groupId
- * @property {string} topic
- * @property {number} committedOffset
- * @property {number} lastUpdate
- */
-
-/**
- * Production-grade Kafka-like client with full advanced features:
- * - Publish with compression options
- * - Subscribe with offset management
- * - Consumer groups with offset commits
- * - Automatic reconnection with exponential backoff
- * - Backpressure handling
- * - Connection pooling (single connection with multiplexing)
- * - Graceful shutdown
- * - Comprehensive metrics
- */
 class Client extends EventEmitter {
   constructor(options) {
     super();
@@ -43,29 +16,24 @@ class Client extends EventEmitter {
     this.port = opts.port || 9092;
     this.logger = opts.logger || new Logger({ name: 'client' });
 
-    // Reconnection strategy
     this.maxRetries = opts.maxRetries || 10;
-    this.initialRetryDelay = opts.initialRetryDelay || 100; // ms
-    this.maxRetryDelay = opts.maxRetryDelay || 30000; // ms
+    this.initialRetryDelay = opts.initialRetryDelay || 100;
+    this.maxRetryDelay = opts.maxRetryDelay || 30000;
     this.backoffMultiplier = opts.backoffMultiplier || 2;
 
-    // Connection pooling & timeout
     this.connectTimeout = opts.connectTimeout || 15000;
     this.requestTimeout = opts.requestTimeout || 15000;
 
-    // State
     this.tcpClient = null;
     this.connected = false;
     this.closing = false;
     this.retryCount = 0;
     this.nextRetryDelay = this.initialRetryDelay;
 
-    // Consumer groups & offset management
-    this.consumerGroups = new Map(); // groupId -> { topic, committedOffset }
-    this.subscriptions = new Map(); // topic -> { subscriberId, handler, offset, groupId, paused }
-    this.pendingOffsetCommits = new Map(); // groupId -> { topic, offset, timestamp }
+    this.consumerGroups = new Map();
+    this.subscriptions = new Map();
+    this.pendingOffsetCommits = new Map();
 
-    // Metrics
     this.metrics = {
       messagesPublished: 0,
       messagesBytesPublished: 0,
@@ -78,18 +46,13 @@ class Client extends EventEmitter {
       subscriberCount: 0
     };
 
-    // Backpressure handling
     this.maxInflightRequests = opts.maxInflightRequests || 100;
     this.inflightRequests = 0;
 
-    // Timers for cleanup
     this.offsetCommitInterval = opts.offsetCommitInterval || 5000;
     this.offsetCommitTimer = null;
   }
 
-  /**
-   * Connect to broker with automatic reconnection
-   */
   async connect() {
     if (this.connected) {
       this.logger.warn('Client already connected');
@@ -99,9 +62,6 @@ class Client extends EventEmitter {
     return this._connectWithRetry();
   }
 
-  /**
-   * Internal connection with exponential backoff retry
-   */
   async _connectWithRetry() {
     try {
       await this._attemptConnect();
@@ -140,9 +100,6 @@ class Client extends EventEmitter {
     }
   }
 
-  /**
-   * Single connection attempt
-   */
   async _attemptConnect() {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -190,13 +147,6 @@ class Client extends EventEmitter {
     });
   }
 
-  /**
-   * Publish a message with options
-   * @param {string} topic
-   * @param {*} message
-   * @param {Object} options - compression, key, partition
-   * @returns {Promise<PublishResult>}
-   */
   async publish(topic, message, options) {
     if (!this.connected) {
       throw new Error('Client not connected');
@@ -206,7 +156,6 @@ class Client extends EventEmitter {
       throw new Error('Client is shutting down');
     }
 
-    // Backpressure: wait if too many inflight requests
     if (this.inflightRequests >= this.maxInflightRequests) {
       await new Promise((resolve) => {
         const interval = setInterval(() => {
@@ -264,13 +213,6 @@ class Client extends EventEmitter {
     }
   }
 
-  /**
-   * Subscribe to topic with consumer group support
-   * @param {string} topic
-   * @param {Function} handler
-   * @param {Object} options - offset, groupId
-   * @returns {Promise<string>} subscriberId
-   */
   async subscribe(topic, handler, options) {
     if (!this.connected) {
       throw new Error('Client not connected');
@@ -283,7 +225,6 @@ class Client extends EventEmitter {
     const opts = options || {};
     const groupId = opts.groupId || null;
 
-    // If using consumer group, retrieve last committed offset
     let offset = opts.offset || 0;
     if (groupId && this.consumerGroups.has(groupId)) {
       const groupState = this.consumerGroups.get(groupId);
@@ -321,7 +262,6 @@ class Client extends EventEmitter {
       lastActivity: Date.now()
     });
 
-    // Initialize consumer group if using one
     if (groupId && !this.consumerGroups.has(groupId)) {
       this.consumerGroups.set(groupId, {
         topic,
@@ -342,26 +282,18 @@ class Client extends EventEmitter {
     return subscriberId;
   }
 
-  /**
-   * Commit offset for consumer group
-   * @param {string} groupId
-   * @param {string} topic
-   * @param {number} offset
-   */
   async commitOffset(groupId, topic, offset) {
     if (!this.connected) {
       throw new Error('Client not connected');
     }
 
     try {
-      // Stage commit for batch
       this.pendingOffsetCommits.set(groupId, {
         topic,
         offset,
         timestamp: Date.now()
       });
 
-      // Update local state immediately
       if (this.consumerGroups.has(groupId)) {
         const groupState = this.consumerGroups.get(groupId);
         groupState.committedOffset = offset;
@@ -387,9 +319,6 @@ class Client extends EventEmitter {
     }
   }
 
-  /**
-   * Pause consuming from topic
-   */
   pauseConsume(topic) {
     const subscription = this.subscriptions.get(topic);
     if (subscription) {
@@ -398,9 +327,6 @@ class Client extends EventEmitter {
     }
   }
 
-  /**
-   * Resume consuming from topic
-   */
   resumeConsume(topic) {
     const subscription = this.subscriptions.get(topic);
     if (subscription) {
@@ -409,16 +335,10 @@ class Client extends EventEmitter {
     }
   }
 
-  /**
-   * Get consumer group state
-   */
   getConsumerGroupState(groupId) {
     return this.consumerGroups.get(groupId) || null;
   }
 
-  /**
-   * Get client metrics
-   */
   getMetrics() {
     return {
       ...this.metrics,
@@ -429,9 +349,6 @@ class Client extends EventEmitter {
     };
   }
 
-  /**
-   * Send with timeout
-   */
   _sendWithTimeout(packet) {
     return Promise.race([
       this.tcpClient.send(packet),
@@ -441,9 +358,6 @@ class Client extends EventEmitter {
     ]);
   }
 
-  /**
-   * Setup packet handler for incoming messages
-   */
   _setupPacketHandler() {
     this.tcpClient.parser.onPacket = (packet) => {
       if (packet.opcode === OPCODES.ACK) {
@@ -454,9 +368,6 @@ class Client extends EventEmitter {
     };
   }
 
-  /**
-   * Handle incoming message from broker
-   */
   _handleIncomingMessage(packet) {
     try {
       const data = JSON.parse(packet.payload.toString('utf8'));
@@ -485,7 +396,6 @@ class Client extends EventEmitter {
         partition: data.partition
       };
 
-      // Auto-commit if using consumer group
       if (subscription.groupId) {
         this.commitOffset(subscription.groupId, topic, offset).catch(err => {
           this.logger.error('Auto-commit failed', err);
@@ -495,7 +405,6 @@ class Client extends EventEmitter {
       this.metrics.messagesReceived++;
       this.metrics.messagesBytesReceived += Buffer.byteLength(JSON.stringify(messageEvent));
 
-      // Call handler
       subscription.handler(messageEvent);
     } catch (err) {
       this.metrics.errors++;
@@ -504,26 +413,15 @@ class Client extends EventEmitter {
     }
   }
 
-  /**
-   * Start periodic offset commit timer
-   */
   _startOffsetCommitTimer() {
     this.offsetCommitTimer = setInterval(() => {
       this._flushOffsetCommits();
     }, this.offsetCommitInterval);
   }
 
-  /**
-   * Flush pending offset commits (stub - for future persistence)
-   */
   async _flushOffsetCommits() {
-    // This would persist offsets to a separate storage
-    // For now, they're kept in memory and committed on message receive
   }
 
-  /**
-   * Graceful shutdown
-   */
   async disconnect() {
     this.closing = true;
 
