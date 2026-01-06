@@ -73,7 +73,7 @@ class TcpClient extends EventEmitter {
         this.socket.destroy();
         reject(new Error('Connection timeout'));
       }, 15000);
-
+      
       this.socket.on('connect', onConnect);
       this.socket.on('error', onError);
       this.socket.on('close', onClose);
@@ -146,8 +146,8 @@ class TcpClient extends EventEmitter {
         this._onPacket(packet);
         handler(packet);
       };
-    } else if (this.socket) {
-      this.socket.on(event, handler);
+    } else {
+      super.on(event, handler);
     }
   }
 

@@ -151,7 +151,7 @@ class Client extends EventEmitter {
             });
           }
         });
-
+        
         timeout = setTimeout(() => {
           if (!resolved) {
             resolved = true;
@@ -163,9 +163,10 @@ class Client extends EventEmitter {
             reject(new Error('Connection timeout'));
           }
         }, this.connectTimeout);
-
-        this.tcpClient.connect().catch(onError);
+        
+        this.tcpClient.connect();
       } catch (err) {
+        
         cleanup();
         reject(err);
       }
