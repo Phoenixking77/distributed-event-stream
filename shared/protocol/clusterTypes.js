@@ -25,11 +25,14 @@ const ELECTION_TYPES = Object.freeze({
 });
 
 // Heartbeat intervals (ms)
+// Election timeouts are randomized to avoid split-brain:
+//   timeout = ELECTION_TIMEOUT_BASE + rand(0..ELECTION_TIMEOUT_RANGE)
 const HEARTBEAT_INTERVALS = Object.freeze({
-  BROKER_TO_CONTROLLER: 5000,    // 5s
-  LEADER_TO_FOLLOWERS: 1000,     // 1s  
-  ELECTION_TIMEOUT: 15000,       // 15s (increased for local testing)
-  DEAD_NODE_TIMEOUT: 15000       // 15s
+  BROKER_TO_CONTROLLER: 5000,     // 5s
+  LEADER_TO_FOLLOWERS: 1000,      // 1s
+  ELECTION_TIMEOUT_BASE: 1200,    // 1.2s base
+  ELECTION_TIMEOUT_RANGE: 800,    // +0..0.8s jitter (net 1.2s-2.0s)
+  DEAD_NODE_TIMEOUT: 15000        // 15s
 });
 
 // ISR (In-Sync Replica) settings
