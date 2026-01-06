@@ -19,7 +19,6 @@ class Broker {
     this.brokerId = opts.brokerId || `broker-${Date.now()}`;
     this.nodeState = NODE_STATES.FOLLOWER;
 
-    // Allow port override from options or environment
     if (opts.port) {
       this.config.broker.port = opts.port;
     } else if (process.env.BROKER_PORT) {
@@ -164,7 +163,6 @@ class Broker {
   }
 
   _startLeaderStatusCheck() {
-    // Check leader status every 5 seconds
     setInterval(() => {
       this._checkLeaderStatus();
     }, 5000);
@@ -212,7 +210,6 @@ class Broker {
         await this.demoteToFollower();
       }
     } catch (err) {
-      // Silently ignore errors in status check
     }
   }
 

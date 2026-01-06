@@ -3,6 +3,7 @@
 import { OPCODES } from '../../../shared/protocol/packetTypes.js';
 import { encodePacket } from '../../../shared/protocol/codec.js';
 import { Logger } from '../../../shared/utils/logger.js';
+import { ENTRY_HEADER_SIZE } from '../log/segmentManager.js';
 
 class MessageRouter {
   constructor(options) {
@@ -168,7 +169,8 @@ class MessageRouter {
         });
 
         subscriber.socket.write(dataPacket);
-        this.brokerState.updateSubscriberOffset(subscriberId, msg.offset + msg.message.length + 16);
+        const nextOffset = msg.offset + ENTRY_HEADER_SIZE + msg.message.length;
+        this.brokerState.updateSubscriberOffset(subscriberId, nextOffset);
       }
     } catch (err) {
       this.logger.error('Stream error', err);
