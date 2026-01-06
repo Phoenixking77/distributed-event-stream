@@ -102,9 +102,35 @@ class Client extends EventEmitter {
 
   async _attemptConnect() {
     return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('Connection timeout'));
-      }, this.connectTimeout);
+      let timeout = null;
+      let resolved = false;
+
+      const cleanup = () => {
+        if (timeout) {
+          clearTimeout(timeout);
+          timeout = null;
+        }
+      };
+
+      const onConnect = () => {
+        if (resolved) return;
+        resolved = true;
+        cleanup();
+        this.connected = true;
+        this._setupPacketHandler();
+        this._startOffsetCommitTimer();
+        resolve();
+      };
+
+      const onError = (err) => {
+        if (resolved) return;
+        resolved = true;
+        cleanup();
+        this.connected = false;
+        this.metrics.errors++;
+        this.emit('error', err);
+        reject(err);
+      };
 
       try {
         this.tcpClient = new TcpClient({
@@ -113,21 +139,8 @@ class Client extends EventEmitter {
           logger: this.logger.child({ component: 'tcpClient' })
         });
 
-        this.tcpClient.on('connect', () => {
-          clearTimeout(timeout);
-          this.connected = true;
-          this._setupPacketHandler();
-          this._startOffsetCommitTimer();
-          resolve();
-        });
-
-        this.tcpClient.on('error', (err) => {
-          clearTimeout(timeout);
-          this.connected = false;
-          this.metrics.errors++;
-          this.emit('error', err);
-          reject(err);
-        });
+        this.tcpClient.on('connect', onConnect);
+        this.tcpClient.on('error', onError);
 
         this.tcpClient.on('disconnect', () => {
           this.connected = false;
@@ -139,9 +152,21 @@ class Client extends EventEmitter {
           }
         });
 
-        this.tcpClient.connect();
+        timeout = setTimeout(() => {
+          if (!resolved) {
+            resolved = true;
+            this.tcpClient.removeListener('connect', onConnect);
+            this.tcpClient.removeListener('error', onError);
+            if (this.tcpClient.socket) {
+              this.tcpClient.socket.destroy();
+            }
+            reject(new Error('Connection timeout'));
+          }
+        }, this.connectTimeout);
+
+        this.tcpClient.connect().catch(onError);
       } catch (err) {
-        clearTimeout(timeout);
+        cleanup();
         reject(err);
       }
     });
