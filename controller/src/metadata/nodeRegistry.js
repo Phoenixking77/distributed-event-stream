@@ -64,11 +64,9 @@ class NodeRegistry {
     const existing = this.nodes.get(nodeId);
 
     if (existing) {
-      // Update existing node
       const wasAlive = existing.state !== NODE_STATES.DEAD;
       existing.lastHeartbeat = now;
       existing.metadata = { ...existing.metadata, ...metadata };
-      // Track heartbeat source to avoid false positives
       existing.metadata.lastSeen = now;
       if (metadata && metadata.heartbeatType) {
         if (metadata.heartbeatType === 'leader') {
@@ -81,7 +79,6 @@ class NodeRegistry {
       }
       existing.heartbeatCount += 1;
 
-      // Check if node recovered from dead state
       if (!wasAlive && existing.state === NODE_STATES.DEAD) {
         this.logger.info('Node recovered from dead state', { nodeId });
         existing.state = NODE_STATES.FOLLOWER;
@@ -94,7 +91,6 @@ class NodeRegistry {
         state: existing.state
       });
     } else {
-      // Register new node
       const node = {
         nodeId,
         state: NODE_STATES.FOLLOWER,

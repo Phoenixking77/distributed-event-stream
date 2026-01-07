@@ -12,13 +12,12 @@ class LeaderElection {
     }
 
     this.nodeRegistry = options.nodeRegistry;
-    this.controllerRegistry = options.controllerRegistry; // New: bridge to node registry
+    this.controllerRegistry = options.controllerRegistry;
     this.logger = options.logger || new Logger({ name: 'leaderElection' });
     
-    // Election communication config
     this.electionPort = options.electionPort || 9093;
     this.host = options.host || '0.0.0.0';
-    this.peers = options.peers || []; // Array of {host, port} for peer controllers
+    this.peers = options.peers || [];
     
     this.currentTerm = 0;
     this.votedFor = null;
@@ -33,10 +32,8 @@ class LeaderElection {
     this.votes = new Set();
     this.electionInProgress = false;
     this.closed = false;
-    // Self identifier used in election messages (host:port)
     this.selfId = options.selfId || `${this.host}:${this.electionPort}`;
     
-    // Initialize heartbeat sender (NEW)
     this.heartbeatSender = new HeartbeatSender({
       logger: this.logger.child({ component: 'heartbeatSender' }),
       peers: this.peers,
@@ -75,24 +72,21 @@ class LeaderElection {
         }
       });
 
-      this.socket.bind(this.electionPort, this.host, () => {
+        this.socket.bind(this.electionPort, this.host, () => {
         this.logger.info('Election socket initialized', {
           host: this.host,
           port: this.electionPort,
           peersCount: this.peers.length
         });
         
-        // Share socket with heartbeat sender (NEW)
         this.heartbeatSender.setSocket(this.socket);
         
-        // If we have peers (multi-controller setup), trigger election immediately
         if (this.peers.length > 0 && !this.forceLeader) {
           this.logger.info('Multi-controller setup detected, starting election', {
             peersCount: this.peers.length,
             peerAddresses: this.peers.map(p => `${p.host}:${p.port}`).join(',')
           });
           
-          // Start election after a short delay to allow all controllers to initialize
           setTimeout(() => {
             if (!this.closed && !this.electionInProgress) {
               this.startElection();
@@ -100,10 +94,8 @@ class LeaderElection {
           }, 2000);
         }
 
-        // If configured to force leader, immediately become leader and announce
         if (this.forceLeader) {
           this.logger.info('Force-leader mode enabled, becoming leader immediately', { selfId: this.selfId });
-          // ensure term increments so followers see a higher term
           this.currentTerm = Math.max(this.currentTerm + 1, 1);
           this._becomeLeader();
         }
@@ -118,7 +110,7 @@ class LeaderElection {
    */
   setPeers(peers) {
     this.peers = peers || [];
-    this.heartbeatSender.setPeers(this.peers); // NEW: update heartbeat sender too
+    this.heartbeatSender.setPeers(this.peers);
     this.logger.debug('Peers configured for election', {
       peerCount: this.peers.length,
       peers: this.peers.map(p => `${p.host}:${p.port}`).join(',')
@@ -153,13 +145,10 @@ class LeaderElection {
       candidateId: this.selfId
     });
 
-    // Add small jitter before requesting votes to reduce simultaneous broadcasts
-    // Add jitter before broadcasting vote requests to reduce simultaneous elections
     const jitter = Math.random() * Math.max(this.electionTimeoutRange * 0.1, 50);
     setTimeout(() => {
       this._requestVotes();
     
-      // Check if we already have quorum (single controller or no peers)
       if (this.votes.size >= this._getRequiredVotes()) {
         this._becomeLeader();
       } else {
@@ -259,7 +248,6 @@ class LeaderElection {
     }
 
     if (term >= this.currentTerm) {
-      // Split-brain guard: if we are leader with same term and see another leader, tie-break
       if (term === this.currentTerm && this.state === NODE_STATES.LEADER && leaderId !== this.selfId) {
         const preferredLeader = [leaderId, this.selfId].sort()[0];
         if (preferredLeader !== this.selfId) {
@@ -292,11 +280,9 @@ class LeaderElection {
       
       this._resetElectionTimer();
       
-      // Update controller registry with new leader (NEW)
       if (this.controllerRegistry) {
         this.controllerRegistry.handleHeartbeatReceived(leaderId);
       }
-      // Update node registry heartbeat to avoid false dead detection
       if (this.nodeRegistry) {
         this.nodeRegistry.registerHeartbeat(leaderId, {
           type: 'controller',
@@ -322,7 +308,7 @@ class LeaderElection {
       this.leaderId = null;
       this.electionInProgress = false;
       
-      this.heartbeatSender.stopHeartbeats(); // NEW: stop sending heartbeats
+      this.heartbeatSender.stopHeartbeats();
       this._startElectionTimer();
     }
   }
@@ -402,7 +388,6 @@ class LeaderElection {
   }
 
   _becomeLeader() {
-    // If another leader is already recorded for this term, apply deterministic tie-break
     if (this.nodeRegistry) {
       const currentLeader = this.nodeRegistry.getLeader();
       if (currentLeader && currentLeader.nodeId !== this.selfId) {
@@ -434,25 +419,19 @@ class LeaderElection {
     
     this._clearElectionTimer();
     
-    // Start sending heartbeats to followers (NEW - CRITICAL FIX)
     this.heartbeatSender.startHeartbeats();
     
     this._announceLeadership();
     
-    // Update controller registry (NEW)
     if (this.controllerRegistry) {
       this.controllerRegistry.handleLeaderElected(this.leaderId, this.currentTerm);
     }
   }
 
   _startLeaderHeartbeats() {
-    // REMOVED - Now using HeartbeatSender.startHeartbeats()
-    // This method is no longer used
   }
 
   _sendHeartbeats() {
-    // REMOVED - Now using HeartbeatSender
-    // This method is no longer used
   }
 
   _announceLeadership() {
@@ -500,8 +479,6 @@ class LeaderElection {
   }
 
   _getRequiredVotes() {
-    // For controllers, we need quorum among controllers, not brokers
-    // Total controllers = number of peers + 1 (self)
     const totalControllers = this.peers.length + 1;
     return Math.floor(totalControllers / 2) + 1;
   }
@@ -619,15 +596,12 @@ class LeaderElection {
           }
         });
       } else if (type === ELECTION_TYPES.VOTE_RESPONSE) {
-        // Prefer explicit candidateId from message (responder selfId); fall back to source addr
         const peerId = message.candidateId || `${rinfo.address}:${rinfo.port}`;
         this.handleVoteResponse(peerId, term, message.voteGranted);
       } else if (type === ELECTION_TYPES.LEADER_ANNOUNCEMENT) {
-        // Use announced leader id when available
         const leaderId = message.leaderId || message.candidateId || `${rinfo.address}:${rinfo.port}`;
         this.handleLeaderHeartbeat(leaderId, term);
       } else if (type === ELECTION_TYPES.LEADER_HEARTBEAT) {
-        // Handle periodic leader heartbeats (NEW)
         const leaderId = message.leaderId || message.candidateId || `${rinfo.address}:${rinfo.port}`;
         this.handleLeaderHeartbeat(leaderId, term);
       } else {
@@ -641,7 +615,7 @@ class LeaderElection {
   close() {
     this.closed = true;
     this._clearElectionTimer();
-    this.heartbeatSender.close(); // NEW: close heartbeat sender
+    this.heartbeatSender.close();
     
     if (this.socket) {
       try {

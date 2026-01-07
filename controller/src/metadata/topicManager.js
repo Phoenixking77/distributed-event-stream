@@ -17,10 +17,7 @@ class TopicManager {
       throw new Error('nodeRegistry required');
     }
 
-    // Topic metadata: topicName -> { leader, followers, isr, created, stats }
     this.topics = new Map();
-    
-    // ISR configuration
     this.minIsr = opts.minIsr || ISR_CONFIG.MIN_ISR;
     this.maxLagMs = opts.maxLagMs || ISR_CONFIG.MAX_LAG_MS;
   }
@@ -45,7 +42,6 @@ class TopicManager {
       return existing;
     }
 
-    // Create new topic metadata
     const topic = {
       topicName,
       leader: leaderNodeId,
@@ -182,7 +178,6 @@ class TopicManager {
       updatedAt: Date.now()
     };
 
-    // Update ISR based on lag
     const isInSync = lagMs < this.maxLagMs;
     this._updateISR(topicName, followerNodeId, isInSync);
 
@@ -379,7 +374,6 @@ class TopicManager {
       this.reassignLeader(topic.topicName);
     }
 
-    // Remove node from follower lists
     for (const topic of this.topics.values()) {
       this.removeFollower(topic.topicName, nodeId);
     }
