@@ -2,10 +2,7 @@
 
 import { Logger } from '../../../shared/utils/logger.js';
 
-/**
- * Reconnection manager with exponential backoff and jitter
- * Implements circuit breaker pattern for reliability
- */
+
 class ReconnectionManager {
   constructor(options) {
     const opts = options || {};
@@ -42,9 +39,7 @@ class ReconnectionManager {
     return Math.min(Math.ceil(delayWithJitter), this.maxDelay);
   }
 
-  /**
-   * Record a failed attempt
-   */
+
   recordFailure() {
     this.retryCount++;
     this.lastFailureTime = Date.now();
@@ -71,9 +66,7 @@ class ReconnectionManager {
     };
   }
 
-  /**
-   * Record a successful connection
-   */
+
   recordSuccess() {
     this.retryCount = 0;
     this.consecutiveFailures = 0;
@@ -90,16 +83,12 @@ class ReconnectionManager {
     }
   }
 
-  /**
-   * Check if max retries exceeded
-   */
+
   shouldGiveUp() {
     return this.retryCount >= this.maxRetries;
   }
 
-  /**
-   * Get current state
-   */
+
   getState() {
     return {
       retryCount: this.retryCount,
@@ -110,9 +99,7 @@ class ReconnectionManager {
     };
   }
 
-  /**
-   * Reset to initial state
-   */
+  
   reset() {
     this.retryCount = 0;
     this.currentDelay = this.minDelay;
@@ -126,9 +113,7 @@ class ReconnectionManager {
     }
   }
 
-  /**
-   * Schedule circuit reset after timeout
-   */
+ 
   _scheduleCircuitReset() {
     if (this.resetTimer) {
       clearTimeout(this.resetTimer);
@@ -142,9 +127,7 @@ class ReconnectionManager {
     }, this.resetTimeout);
   }
 
-  /**
-   * Cleanup
-   */
+  
   destroy() {
     if (this.resetTimer) {
       clearTimeout(this.resetTimer);
