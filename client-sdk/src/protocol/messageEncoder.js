@@ -8,10 +8,7 @@ const gunzip = promisify(zlib.gunzip);
 const deflate = promisify(zlib.deflate);
 const inflate = promisify(zlib.inflate);
 
-/**
- * Message encoder with multiple compression algorithms
- * Supports: none, gzip, deflate, snappy
- */
+
 class MessageEncoder {
   /**
    * Encode and optionally compress a message
