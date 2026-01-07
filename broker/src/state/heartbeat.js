@@ -4,10 +4,7 @@ import { createSocket } from 'dgram';
 import { Logger } from '../../../shared/utils/logger.js';
 import { NODE_STATES, HEARTBEAT_INTERVALS, createHeartbeatMessage } from '../../../shared/protocol/clusterTypes.js';
 
-/**
- * Heartbeat sends periodic health signals from broker to controller.
- * Includes broker state, topic metadata, and replication status.
- */
+
 class Heartbeat {
   constructor(options) {
     const opts = options || {};
@@ -47,9 +44,7 @@ class Heartbeat {
     };
   }
 
-  /**
-   * Start sending heartbeats
-   */
+ 
   start() {
     if (this.timer) {
       throw new Error('Heartbeat already started');
@@ -98,9 +93,7 @@ class Heartbeat {
     }
   }
 
-  /**
-   * Send heartbeat to controller
-   */
+
   _sendHeartbeat() {
     if (this.closed || !this.socket) {
       return;
@@ -133,9 +126,7 @@ class Heartbeat {
     });
   }
 
-  /**
-   * Gather broker metadata for heartbeat
-   */
+  
   _gatherMetadata() {
     const metadata = {
       host: this.brokerHost,
