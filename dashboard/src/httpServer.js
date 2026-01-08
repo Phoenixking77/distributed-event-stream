@@ -11,11 +11,7 @@ import { Logger } from '../../shared/utils/logger.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-/**
- * DashboardHTTPServer exposes a read-only HTTP API and serves the
- * static dashboard UI. It acts as a thin façade over the controller
- * HTTP API, adding aggregation and UI-friendly shapes.
- */
+
 class DashboardHTTPServer {
   constructor(options) {
     const opts = options || {};
@@ -31,7 +27,6 @@ class DashboardHTTPServer {
     this.server = null;
     this.closed = false;
 
-    // Resolve UI asset paths once; files are small enough to cache in memory.
     const uiDir = opts.uiDir || join(__dirname, 'ui');
     this.assets = {
       '/': join(uiDir, 'index.html'),
@@ -124,7 +119,6 @@ class DashboardHTTPServer {
 
     this.logger.debug('Dashboard request', { method, path: pathname });
 
-    // Serve static UI assets first.
     if (method === 'GET' && this.assets[pathname]) {
       this._serveStatic(pathname, res);
       return;
@@ -140,7 +134,6 @@ class DashboardHTTPServer {
       return;
     }
 
-    // JSON API endpoints used by the dashboard frontend.
     if (pathname === '/health') {
       this._proxySimple('/health', res);
       return;
