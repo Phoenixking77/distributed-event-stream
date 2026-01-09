@@ -17,7 +17,8 @@ import {
   MessageDecoder,
   ErrorHandler,
   RetryPolicy
-} from '../client-sdk/src/index.js';
+} from '../src/index.js';
+
 
 describe('Client SDK', () => {
   describe('ReconnectionManager', () => {
