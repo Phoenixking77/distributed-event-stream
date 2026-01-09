@@ -21,8 +21,10 @@ export {
   RetryPolicy,
   ErrorHandler
 };
-
+  
+  
 export const createClient = (options) => new Client(options);
 export const createClientPool = (brokers, options) => new ClientPool(brokers, options);
 export const createBatchPublisher = (client, options) => new BatchPublisher(client, options);
 export const createConsumerGroup = (client, options) => new ConsumerGroupManager(client, options);
+
