@@ -1,4 +1,8 @@
 {
+  "type": "module",
+  "scripts": {
+    "test": "mocha \"broker/test/**/*.test.js\" \"client-sdk/test/**/*.test.js\" \"controller/test/**/*.test.js\" \"dashboard/test/**/*.test.js\" \"shared/test/**/*.test.js\""
+  },
   "devDependencies": {
     "mocha": "^11.7.5"
   }
