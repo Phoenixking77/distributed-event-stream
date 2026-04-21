@@ -6,15 +6,7 @@ import { encodePacket } from '../../../shared/protocol/codec.js';
 import { OPCODES } from '../../../shared/protocol/packetTypes.js';
 import { REPLICATION_TYPES, ISR_CONFIG, createReplicationMessage } from '../../../shared/protocol/clusterTypes.js';
 
-/**
- * ReplicationSender manages log replication from leader to followers.
- * Implements:
- * - Batched log entry transmission
- * - Acknowledgment tracking
- * - ISR (In-Sync Replica) management
- * - Replication lag monitoring
- * - Follower connection management
- */
+
 class ReplicationSender {
   constructor(options) {
     const opts = options || {};
@@ -25,22 +17,22 @@ class ReplicationSender {
       throw new Error('brokerId required');
     }
 
-    // Replication configuration
+    
     this.batchSize = opts.batchSize || 100;
     this.batchTimeoutMs = opts.batchTimeoutMs || 50;
     this.replicationTimeout = opts.replicationTimeout || ISR_CONFIG.REPLICATION_TIMEOUT;
     this.maxLagMs = opts.maxLagMs || ISR_CONFIG.MAX_LAG_MS;
 
-    // Follower connections: followerId -> { socket, host, port, connected }
+    
     this.followers = new Map();
 
-    // Replication state per topic: topicName -> { nextOffset, pendingAcks, lastSent }
+    
     this.topicState = new Map();
 
-    // Replication queue: topicName -> [entries]
+    
     this.replicationQueue = new Map();
 
-    // Flush timers per topic
+    
     this.flushTimers = new Map();
 
     this.closed = false;
@@ -53,9 +45,7 @@ class ReplicationSender {
     };
   }
 
-  /**
-   * Add follower for replication
-   */
+  
   addFollower(followerId, host, port) {
     if (this.followers.has(followerId)) {
       this.logger.debug('Follower already registered', { followerId });
@@ -79,9 +69,7 @@ class ReplicationSender {
     this._connectFollower(followerId);
   }
 
-  /**
-   * Remove follower
-   */
+  
   removeFollower(followerId) {
     const follower = this.followers.get(followerId);
     if (!follower) {
@@ -97,9 +85,7 @@ class ReplicationSender {
     this.followers.delete(followerId);
   }
 
-  /**
-   * Connect to follower node
-   */
+  
   _connectFollower(followerId) {
     const follower = this.followers.get(followerId);
     if (!follower || follower.connected) {
@@ -147,9 +133,7 @@ class ReplicationSender {
     follower.socket = socket;
   }
 
-  /**
-   * Schedule reconnection attempt
-   */
+  
   _scheduleReconnect(followerId) {
     if (this.closed) {
       return;
@@ -162,9 +146,7 @@ class ReplicationSender {
     }, 5000);
   }
 
-  /**
-   * Handle response from follower (ACK)
-   */
+  
   _handleFollowerResponse(followerId, data) {
     try {
       const response = JSON.parse(data.toString('utf8'));
@@ -180,9 +162,7 @@ class ReplicationSender {
     }
   }
 
-  /**
-   * Handle ACK from follower
-   */
+  
   _handleAck(followerId, data) {
     const { topic, offset } = data;
     
@@ -208,9 +188,7 @@ class ReplicationSender {
     });
   }
 
-  /**
-   * Replicate log entry to followers
-   */
+  
   replicateEntry(topic, offset, message, timestamp) {
     if (this.closed) {
       return;
@@ -230,9 +208,7 @@ class ReplicationSender {
     }
   }
 
-  /**
-   * Schedule batch flush
-   */
+  
   _scheduleFlush(topic) {
     if (this.flushTimers.has(topic)) {
       return;
@@ -246,9 +222,7 @@ class ReplicationSender {
     this.flushTimers.set(topic, timer);
   }
 
-  /**
-   * Flush topic replication queue
-   */
+  
   _flushTopic(topic) {
     const queue = this.replicationQueue.get(topic);
     if (!queue || queue.length === 0) {
@@ -275,9 +249,7 @@ class ReplicationSender {
     }
   }
 
-  /**
-   * Send entries to specific follower
-   */
+  
   _sendToFollower(follower, topic, entries) {
     if (!follower.socket || !follower.connected) {
       return;
@@ -313,7 +285,7 @@ class ReplicationSender {
           this.stats.totalBytesSent += packet.length;
           this.stats.totalEntriesSent += entries.length;
 
-          // Track pending ACKs
+          
           const topicState = this._getOrCreateTopicState(topic);
           for (const entry of entries) {
             topicState.pendingAcks.add(`${follower.followerId}:${entry.offset}`);
@@ -330,9 +302,7 @@ class ReplicationSender {
     }
   }
 
-  /**
-   * Get or create topic state
-   */
+  
   _getOrCreateTopicState(topic) {
     if (!this.topicState.has(topic)) {
       this.topicState.set(topic, {
@@ -344,9 +314,7 @@ class ReplicationSender {
     return this.topicState.get(topic);
   }
 
-  /**
-   * Get replication statistics
-   */
+  
   getStats() {
     const followerStats = [];
 
@@ -367,9 +335,7 @@ class ReplicationSender {
     };
   }
 
-  /**
-   * Get In-Sync Replicas for a topic
-   */
+  
   getISR(topic) {
     const isr = [this.brokerId];
     const now = Date.now();
@@ -388,9 +354,7 @@ class ReplicationSender {
     return isr;
   }
 
-  /**
-   * Close the replication sender
-   */
+  
   close() {
     if (this.closed) {
       return;
@@ -399,13 +363,13 @@ class ReplicationSender {
     this.logger.info('Closing replication sender');
     this.closed = true;
 
-    // Clear flush timers
+    
     for (const timer of this.flushTimers.values()) {
       clearTimeout(timer);
     }
     this.flushTimers.clear();
 
-    // Close all follower connections
+    
     for (const follower of this.followers.values()) {
       if (follower.socket) {
         follower.socket.destroy();
