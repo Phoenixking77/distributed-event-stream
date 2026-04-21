@@ -7,11 +7,7 @@ const gunzip = promisify(zlib.gunzip);
 const inflate = promisify(zlib.inflate);
 
 class MessageDecoder {
-  /**
-   * Decode and decompress a single frame
-   * @param {Buffer} frame
-   * @returns {Promise<{message:any, key:string|null, compression:string}>}
-   */
+  
   static async decode(frame) {
     if (!Buffer.isBuffer(frame) || frame.length < 9) {
       throw new Error('Invalid frame: too small');
@@ -63,11 +59,7 @@ class MessageDecoder {
     };
   }
 
-  /**
-   * Decode a batch buffer
-   * @param {Buffer} batch
-   * @returns {Promise<Array>}
-   */
+  
   static async decodeBatch(batch) {
     if (!Buffer.isBuffer(batch) || batch.length < 4) {
       throw new Error('Invalid batch: too small');
