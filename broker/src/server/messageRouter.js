@@ -79,7 +79,7 @@ class MessageRouter {
 
     socket.write(ackPacket);
 
-    // Trigger replication if leader
+    
     if (this.onPublish) {
       this.onPublish(topic, result.offset, messageBuffer, result.timestamp);
     }
