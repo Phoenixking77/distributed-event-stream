@@ -1,7 +1,7 @@
 'use strict';
 
 import { TcpClient } from './connection/tcpClient.js';
-import { encodePacket, decodePacket } from '../../shared/protocol/codec.js';
+import { encodePacket } from '../../shared/protocol/codec.js';
 import { OPCODES } from '../../shared/protocol/packetTypes.js';
 import { Logger } from '../../shared/utils/logger.js';
 import { EventEmitter } from 'events';
@@ -376,12 +376,7 @@ class Client extends EventEmitter {
   }
 
   _sendWithTimeout(packet) {
-    return Promise.race([
-      this.tcpClient.send(packet),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Request timeout')), this.requestTimeout)
-      )
-    ]);
+    return this.tcpClient.send(packet, { timeout: this.requestTimeout });
   }
 
   _setupPacketHandler() {
@@ -446,6 +441,28 @@ class Client extends EventEmitter {
   }
 
   async _flushOffsetCommits() {
+    if (this.pendingOffsetCommits.size === 0) {
+      return [];
+    }
+
+    const flushed = [];
+
+    for (const [groupId, commit] of this.pendingOffsetCommits.entries()) {
+      const groupState = this.consumerGroups.get(groupId);
+      if (groupState) {
+        groupState.committedOffset = commit.offset;
+        groupState.lastCommit = commit.timestamp;
+      }
+
+      flushed.push({ groupId, ...commit });
+      this.pendingOffsetCommits.delete(groupId);
+    }
+
+    this.logger.debug('Flushed pending offset commits', {
+      count: flushed.length
+    });
+
+    return flushed;
   }
 
   async disconnect() {
