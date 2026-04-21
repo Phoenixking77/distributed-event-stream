@@ -3,31 +3,24 @@
 import { Logger } from '../../../shared/utils/logger.js';
 import { NODE_STATES, HEARTBEAT_INTERVALS } from '../../../shared/protocol/clusterTypes.js';
 
-/**
- * NodeRegistry manages the lifecycle and health of all broker nodes in the cluster.
- * Responsibilities:
- * - Track node registration and metadata
- * - Monitor heartbeats and detect failures
- * - Maintain node state transitions (follower/candidate/leader/dead)
- * - Provide cluster topology queries
- */
+
 class NodeRegistry {
   constructor(options) {
     const opts = options || {};
     this.logger = opts.logger || new Logger({ name: 'nodeRegistry' });
     
-    // Map of nodeId -> node metadata
+    
     this.nodes = new Map();
     
-    // Heartbeat configuration
+    
     this.deadNodeTimeout = opts.deadNodeTimeout || HEARTBEAT_INTERVALS.DEAD_NODE_TIMEOUT;
     this.heartbeatCheckInterval = opts.heartbeatCheckInterval || 2000;
     
-    // Health check timer
+    
     this.healthCheckTimer = null;
     this.closed = false;
     
-    // Event listeners for node state changes
+    
     this.listeners = {
       nodeRegistered: [],
       nodeStateChanged: [],
@@ -36,9 +29,7 @@ class NodeRegistry {
     };
   }
 
-  /**
-   * Initialize the registry and start health monitoring
-   */
+  
   initialize() {
     if (this.healthCheckTimer) {
       return;
@@ -52,9 +43,7 @@ class NodeRegistry {
     this._startHealthCheck();
   }
 
-  /**
-   * Register or update a node with heartbeat
-   */
+  
   registerHeartbeat(nodeId, metadata) {
     if (this.closed) {
       throw new Error('NodeRegistry is closed');
@@ -119,9 +108,7 @@ class NodeRegistry {
     return this.nodes.get(nodeId);
   }
 
-  /**
-   * Update node state (follower/candidate/leader)
-   */
+  
   updateNodeState(nodeId, newState, term = null) {
     const node = this.nodes.get(nodeId);
     if (!node) {
@@ -134,7 +121,7 @@ class NodeRegistry {
       return true;
     }
 
-    // For controllers, validate term to prevent stale leader announcements
+    
     if (term !== null && node.metadata && node.metadata.type === 'controller') {
       if (!node.metadata.term || term > node.metadata.term) {
         node.metadata.term = term;
@@ -169,23 +156,17 @@ class NodeRegistry {
     return true;
   }
 
-  /**
-   * Get node by ID
-   */
+  
   getNode(nodeId) {
     return this.nodes.get(nodeId) || null;
   }
 
-  /**
-   * Get all nodes
-   */
+  
   getAllNodes() {
     return Array.from(this.nodes.values());
   }
 
-  /**
-   * Get alive nodes (not in DEAD state)
-   */
+  
   getAliveNodes() {
     const alive = [];
     for (const node of this.nodes.values()) {
@@ -196,9 +177,7 @@ class NodeRegistry {
     return alive;
   }
 
-  /**
-   * Get nodes by state
-   */
+  
   getNodesByState(state) {
     const nodes = [];
     for (const node of this.nodes.values()) {
@@ -209,9 +188,7 @@ class NodeRegistry {
     return nodes;
   }
 
-  /**
-   * Get current leader node
-   */
+  
   getLeader() {
     for (const node of this.nodes.values()) {
       if (node.isLeader && node.state === NODE_STATES.LEADER) {
@@ -221,9 +198,7 @@ class NodeRegistry {
     return null;
   }
 
-  /**
-   * Get cluster statistics
-   */
+  
   getStats() {
     const stats = {
       totalNodes: this.nodes.size,
@@ -257,27 +232,21 @@ class NodeRegistry {
     return stats;
   }
 
-  /**
-   * Check if cluster has quorum (majority alive)
-   */
+  
   hasQuorum() {
     const alive = this.getAliveNodes();
     const total = this.nodes.size;
     return total > 0 && alive.length > Math.floor(total / 2);
   }
 
-  /**
-   * Add event listener
-   */
+  
   on(event, callback) {
     if (this.listeners[event]) {
       this.listeners[event].push(callback);
     }
   }
 
-  /**
-   * Remove event listener
-   */
+  
   off(event, callback) {
     if (this.listeners[event]) {
       const index = this.listeners[event].indexOf(callback);
@@ -287,9 +256,7 @@ class NodeRegistry {
     }
   }
 
-  /**
-   * Emit event to all listeners
-   */
+  
   _emit(event, data) {
     const callbacks = this.listeners[event];
     if (callbacks) {
@@ -303,9 +270,7 @@ class NodeRegistry {
     }
   }
 
-  /**
-   * Start periodic health check
-   */
+  
   _startHealthCheck() {
     this.healthCheckTimer = setInterval(() => {
       this._checkNodeHealth();
@@ -318,9 +283,7 @@ class NodeRegistry {
     this.logger.debug('Health check timer started');
   }
 
-  /**
-   * Check health of all nodes and mark dead ones
-   */
+  
   _checkNodeHealth() {
     if (this.closed) {
       return;
@@ -362,9 +325,7 @@ class NodeRegistry {
     }
   }
 
-  /**
-   * Stop health monitoring
-   */
+  
   _stopHealthCheck() {
     if (this.healthCheckTimer) {
       clearInterval(this.healthCheckTimer);
@@ -373,9 +334,7 @@ class NodeRegistry {
     }
   }
 
-  /**
-   * Close the registry
-   */
+  
   close() {
     if (this.closed) {
       return;
@@ -387,7 +346,7 @@ class NodeRegistry {
     this._stopHealthCheck();
     this.nodes.clear();
 
-    // Clear all listeners
+    
     for (const key in this.listeners) {
       this.listeners[key] = [];
     }

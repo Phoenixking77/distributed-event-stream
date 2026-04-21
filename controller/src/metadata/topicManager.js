@@ -3,10 +3,7 @@
 import { Logger } from '../../../shared/utils/logger.js';
 import { ISR_CONFIG } from '../../../shared/protocol/clusterTypes.js';
 
-/**
- * TopicManager handles topic metadata, partition assignments,
- * and In-Sync Replica (ISR) tracking.
- */
+
 class TopicManager {
   constructor(options) {
     const opts = options || {};
@@ -22,9 +19,7 @@ class TopicManager {
     this.maxLagMs = opts.maxLagMs || ISR_CONFIG.MAX_LAG_MS;
   }
 
-  /**
-   * Register or update topic metadata
-   */
+  
   registerTopic(topicName, leaderNodeId) {
     if (!leaderNodeId) {
       throw new Error('leaderNodeId required');
@@ -62,9 +57,7 @@ class TopicManager {
     return topic;
   }
 
-  /**
-   * Add follower to topic
-   */
+  
   addFollower(topicName, followerNodeId) {
     const topic = this.topics.get(topicName);
     if (!topic) {
@@ -91,9 +84,7 @@ class TopicManager {
     });
   }
 
-  /**
-   * Remove follower from topic
-   */
+  
   removeFollower(topicName, followerNodeId) {
     const topic = this.topics.get(topicName);
     if (!topic) {
@@ -115,9 +106,7 @@ class TopicManager {
     this._updateISR(topicName, followerNodeId, false);
   }
 
-  /**
-   * Update topic leader
-   */
+  
   updateLeader(topicName, newLeaderId) {
     const topic = this.topics.get(topicName);
     if (!topic) {
@@ -140,7 +129,7 @@ class TopicManager {
       newLeader: newLeaderId
     });
 
-    // Move old leader to followers if still alive
+    
     if (oldLeader && !topic.followers.includes(oldLeader)) {
       const oldLeaderNode = this.nodeRegistry.getNode(oldLeader);
       if (oldLeaderNode && oldLeaderNode.state !== 'dead') {
@@ -148,7 +137,7 @@ class TopicManager {
       }
     }
 
-    // Remove new leader from followers
+    
     const followerIndex = topic.followers.indexOf(newLeaderId);
     if (followerIndex > -1) {
       topic.followers.splice(followerIndex, 1);
@@ -159,9 +148,7 @@ class TopicManager {
     topic.updatedAt = Date.now();
   }
 
-  /**
-   * Update replication lag for a follower
-   */
+  
   updateReplicationLag(topicName, followerNodeId, lagMs, offset) {
     const topic = this.topics.get(topicName);
     if (!topic) {
@@ -190,9 +177,7 @@ class TopicManager {
     });
   }
 
-  /**
-   * Update In-Sync Replica set
-   */
+  
   _updateISR(topicName, nodeId, isInSync) {
     const topic = this.topics.get(topicName);
     if (!topic) {
@@ -221,9 +206,7 @@ class TopicManager {
     }
   }
 
-  /**
-   * Update topic statistics
-   */
+  
   updateStats(topicName, stats) {
     const topic = this.topics.get(topicName);
     if (!topic) {
@@ -240,23 +223,17 @@ class TopicManager {
     topic.updatedAt = Date.now();
   }
 
-  /**
-   * Get topic metadata
-   */
+  
   getTopic(topicName) {
     return this.topics.get(topicName) || null;
   }
 
-  /**
-   * Get all topics
-   */
+  
   getAllTopics() {
     return Array.from(this.topics.values());
   }
 
-  /**
-   * Get topics by leader
-   */
+  
   getTopicsByLeader(leaderNodeId) {
     const topics = [];
     for (const topic of this.topics.values()) {
@@ -267,9 +244,7 @@ class TopicManager {
     return topics;
   }
 
-  /**
-   * Get topics where node is a follower
-   */
+  
   getTopicsByFollower(followerNodeId) {
     const topics = [];
     for (const topic of this.topics.values()) {
@@ -280,9 +255,7 @@ class TopicManager {
     return topics;
   }
 
-  /**
-   * Check if topic has sufficient ISR
-   */
+  
   hasSufficientISR(topicName) {
     const topic = this.topics.get(topicName);
     if (!topic) {
@@ -292,9 +265,7 @@ class TopicManager {
     return topic.isr.length >= this.minIsr;
   }
 
-  /**
-   * Get cluster-wide topic statistics
-   */
+  
   getClusterStats() {
     const stats = {
       totalTopics: this.topics.size,
@@ -323,16 +294,14 @@ class TopicManager {
     return stats;
   }
 
-  /**
-   * Reassign topic leadership (called during failover)
-   */
+  
   reassignLeader(topicName) {
     const topic = this.topics.get(topicName);
     if (!topic) {
       throw new Error(`Topic ${topicName} not found`);
     }
 
-    // Find new leader from ISR first
+    
     for (const nodeId of topic.isr) {
       const node = this.nodeRegistry.getNode(nodeId);
       if (node && node.state !== 'dead') {
@@ -341,7 +310,7 @@ class TopicManager {
       }
     }
 
-    // If no ISR members available, try any follower
+    
     for (const nodeId of topic.followers) {
       const node = this.nodeRegistry.getNode(nodeId);
       if (node && node.state !== 'dead') {
@@ -358,13 +327,11 @@ class TopicManager {
     return null;
   }
 
-  /**
-   * Handle node failure - reassign topics if needed
-   */
+  
   handleNodeFailure(nodeId) {
     this.logger.info('Handling node failure for topics', { nodeId });
 
-    // Find all topics where this node was leader
+    
     const leaderTopics = this.getTopicsByLeader(nodeId);
     for (const topic of leaderTopics) {
       this.logger.warn('Reassigning leader due to node failure', {

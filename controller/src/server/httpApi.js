@@ -3,10 +3,7 @@
 import { createServer } from 'http';
 import { Logger } from '../../../shared/utils/logger.js';
 
-/**
- * HTTPApi provides REST endpoints for querying cluster state,
- * topic metadata, and node health.
- */
+
 class HTTPApi {
   constructor(options) {
     const opts = options || {};
@@ -36,9 +33,7 @@ class HTTPApi {
     };
   }
 
-  /**
-   * Start the HTTP server
-   */
+  
   async start() {
     if (this.server) {
       throw new Error('HTTP API already started');
@@ -66,9 +61,7 @@ class HTTPApi {
     });
   }
 
-  /**
-   * Handle incoming HTTP request
-   */
+  
   _handleRequest(req, res) {
     if (this.closed) {
       this._sendResponse(res, 503, { error: 'Server is closing' });
@@ -95,11 +88,9 @@ class HTTPApi {
     }
   }
 
-  /**
-   * Handle GET requests
-   */
+  
   _handleGetRequest(url, req, res) {
-    // Remove query string
+    
     const path = url.split('?')[0];
 
     if (path === '/health') {
@@ -124,9 +115,7 @@ class HTTPApi {
     }
   }
 
-  /**
-   * Health check endpoint
-   */
+  
   _handleHealth(req, res) {
     const hasQuorum = this.nodeRegistry.hasQuorum();
     const aliveNodes = this.nodeRegistry.getAliveNodes().length;
@@ -141,9 +130,7 @@ class HTTPApi {
     this._sendResponse(res, 200, health);
   }
 
-  /**
-   * Cluster information endpoint
-   */
+  
   _handleClusterInfo(req, res) {
     const stats = this.nodeRegistry.getStats();
     const leader = this.nodeRegistry.getLeader();
@@ -174,9 +161,7 @@ class HTTPApi {
     this._sendResponse(res, 200, info);
   }
 
-  /**
-   * All nodes endpoint
-   */
+  
   _handleNodes(req, res) {
     const nodes = this.nodeRegistry.getAllNodes().map(node => ({
       nodeId: node.nodeId,
@@ -191,9 +176,7 @@ class HTTPApi {
     this._sendResponse(res, 200, { nodes, count: nodes.length });
   }
 
-  /**
-   * Current leader endpoint
-   */
+  
   _handleLeader(req, res) {
     const leader = this.nodeRegistry.getLeader();
     
@@ -214,9 +197,7 @@ class HTTPApi {
     });
   }
 
-  /**
-   * Cluster statistics endpoint
-   */
+  
   _handleClusterStats(req, res) {
     const nodeStats = this.nodeRegistry.getStats();
     const topicStats = this.topicManager.getClusterStats();
@@ -228,9 +209,7 @@ class HTTPApi {
     });
   }
 
-  /**
-   * All topics endpoint
-   */
+  
   _handleTopics(req, res) {
     const topics = this.topicManager.getAllTopics().map(topic => ({
       name: topic.topicName,
@@ -245,9 +224,7 @@ class HTTPApi {
     this._sendResponse(res, 200, { topics, count: topics.length });
   }
 
-  /**
-   * Topic detail endpoint
-   */
+  
   _handleTopicDetail(topicName, req, res) {
     const topic = this.topicManager.getTopic(topicName);
     
@@ -279,9 +256,7 @@ class HTTPApi {
     });
   }
 
-  /**
-   * Metrics endpoint
-   */
+  
   _handleMetrics(req, res) {
     const metrics = {
       api: this.stats,
@@ -292,9 +267,7 @@ class HTTPApi {
     this._sendResponse(res, 200, metrics);
   }
 
-  /**
-   * Handle CORS preflight
-   */
+  
   _handleCORS(res) {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
@@ -304,9 +277,7 @@ class HTTPApi {
     res.end();
   }
 
-  /**
-   * Send JSON response
-   */
+  
   _sendResponse(res, statusCode, data) {
     const body = JSON.stringify(data, null, 2);
     
@@ -319,9 +290,7 @@ class HTTPApi {
     res.end(body);
   }
 
-  /**
-   * Stop the HTTP server
-   */
+  
   close() {
     if (this.closed) {
       return;

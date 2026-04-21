@@ -97,7 +97,7 @@ class DashboardHTTPServer {
         const contentType = this._guessContentType(filePath);
         this.assetCache.set(routePath, { content, contentType });
       } catch (err) {
-        // Missing UI files should not crash the server, but should be logged.
+        
         this.logger.warn('Failed to preload UI asset', {
           routePath,
           filePath,

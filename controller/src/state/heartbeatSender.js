@@ -4,15 +4,7 @@ import { createSocket } from 'dgram';
 import { ELECTION_TYPES, HEARTBEAT_INTERVALS, createElectionMessage } from '../../../shared/protocol/clusterTypes.js';
 import { Logger } from '../../../shared/utils/logger.js';
 
-/**
- * HeartbeatSender - Manages leader-to-follower heartbeat transmission
- * 
- * Responsibilities:
- * - Leader sends periodic heartbeats to all follower controllers
- * - Heartbeats maintain leadership and prevent unnecessary elections
- * - Followers receive heartbeats and reset their election timers
- * - Heartbeats include current term and leader identification
- */
+
 class HeartbeatSender {
   constructor(options = {}) {
     const baseLogger = options.logger || new Logger({ name: 'heartbeatSender' });
@@ -22,28 +14,22 @@ class HeartbeatSender {
     this.heartbeatInterval = null;
     this.closed = false;
     
-    // Callback when heartbeat needs to be sent
+    
     this.onSendHeartbeat = options.onSendHeartbeat || (() => ({}));
   }
 
-  /**
-   * Initialize the heartbeat sender (shares socket with election module)
-   */
+  
   setSocket(socket) {
     this.socket = socket;
     this.logger.debug('Heartbeat sender socket configured');
   }
 
-  /**
-   * Set peer controllers
-   */
+  
   setPeers(peers) {
     this.peers = peers || [];
   }
 
-  /**
-   * Start sending periodic heartbeats to followers
-   */
+  
   startHeartbeats() {
     if (this.closed) {
       return;
@@ -67,27 +53,23 @@ class HeartbeatSender {
     });
   }
 
-  /**
-   * Stop sending heartbeats
-   */
+  
   stopHeartbeats() {
     this._clearHeartbeatInterval();
     this.logger.debug('Leader heartbeat sender stopped');
   }
 
-  /**
-   * Send heartbeats to all peer followers
-   */
+  
   _sendHeartbeats() {
     if (!this.socket || this.peers.length === 0) {
       return;
     }
 
-    // Get current heartbeat data from the election module
+    
     const heartbeatData = this.onSendHeartbeat();
 
-    // Use the real leader id as the message's candidateId so receivers can
-    // reliably identify who the leader is (avoid the legacy literal 'self').
+    
+    
     const leaderIdForMsg = heartbeatData.leaderId || heartbeatData.candidateId || 'unknown';
 
     const message = createElectionMessage(
@@ -131,9 +113,7 @@ class HeartbeatSender {
     }
   }
 
-  /**
-   * Clear heartbeat interval
-   */
+  
   _clearHeartbeatInterval() {
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
@@ -141,9 +121,7 @@ class HeartbeatSender {
     }
   }
 
-  /**
-   * Close the heartbeat sender
-   */
+  
   close() {
     this.closed = true;
     this._clearHeartbeatInterval();

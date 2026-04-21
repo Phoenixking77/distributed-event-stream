@@ -4,10 +4,7 @@ import { createSocket } from 'dgram';
 import { Logger } from '../../../shared/utils/logger.js';
 import { createHeartbeatMessage } from '../../../shared/protocol/clusterTypes.js';
 
-/**
- * UDPHeartbeatListener receives heartbeats from broker nodes.
- * Parses heartbeat messages and updates the node registry.
- */
+
 class UDPHeartbeatListener {
   constructor(options) {
     const opts = options || {};
@@ -36,9 +33,7 @@ class UDPHeartbeatListener {
     };
   }
 
-  /**
-   * Start the UDP heartbeat listener
-   */
+  
   async start() {
     if (this.socket) {
       throw new Error('Heartbeat listener already started');
@@ -52,14 +47,14 @@ class UDPHeartbeatListener {
       });
 
       this.socket.on('error', (err) => {
-        // If EADDRINUSE, just log and resolve anyway - another controller is listening
+        
         if (err.code === 'EADDRINUSE') {
           this.logger.info('Heartbeat port already in use by another controller, delegating to peer', {
             host: this.host,
             port: this.port,
             error: err.message
           });
-          this.socket = null; // Mark as not listening locally
+          this.socket = null; 
           resolve();
           return;
         }
@@ -80,9 +75,7 @@ class UDPHeartbeatListener {
     });
   }
 
-  /**
-   * Handle incoming heartbeat message
-   */
+  
   _handleHeartbeat(buffer, rinfo) {
     if (this.closed) {
       return;
@@ -108,7 +101,7 @@ class UDPHeartbeatListener {
         latency: Date.now() - timestamp
       });
 
-      // Enrich metadata with connection info
+      
       const enrichedMetadata = {
         ...metadata,
         lastSeenHost: rinfo.address,
@@ -116,10 +109,10 @@ class UDPHeartbeatListener {
         nodeType
       };
 
-      // Register/update node in registry
+      
       this.nodeRegistry.registerHeartbeat(nodeId, enrichedMetadata);
 
-      // Process topic metadata if included
+      
       if (metadata && metadata.topics) {
         this._processTopicMetadata(nodeId, metadata.topics);
       }
@@ -133,9 +126,7 @@ class UDPHeartbeatListener {
     }
   }
 
-  /**
-   * Process topic metadata from heartbeat
-   */
+  
   _processTopicMetadata(nodeId, topics) {
     if (!Array.isArray(topics)) {
       return;
@@ -148,7 +139,7 @@ class UDPHeartbeatListener {
         continue;
       }
 
-      // Register topic if it doesn't exist
+      
       if (role === 'leader') {
         const existingTopic = this.topicManager.getTopic(name);
         if (!existingTopic) {
@@ -163,22 +154,20 @@ class UDPHeartbeatListener {
           }
         }
 
-        // Update topic stats
+        
         if (typeof offset === 'number') {
           this.topicManager.updateStats(name, { latestOffset: offset });
         }
       }
 
-      // Update replication lag for followers
+      
       if (role === 'follower' && typeof lag === 'number' && typeof offset === 'number') {
         this.topicManager.updateReplicationLag(name, nodeId, lag, offset);
       }
     }
   }
 
-  /**
-   * Get listener statistics
-   */
+  
   getStats() {
     return {
       ...this.stats,
@@ -186,9 +175,7 @@ class UDPHeartbeatListener {
     };
   }
 
-  /**
-   * Stop the heartbeat listener
-   */
+  
   close() {
     if (this.closed) {
       return;
