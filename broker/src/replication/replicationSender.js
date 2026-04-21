@@ -2,7 +2,7 @@
 
 import { createConnection } from 'net';
 import { Logger } from '../../../shared/utils/logger.js';
-import { encodePacket } from '../../../shared/protocol/codec.js';
+import { PacketParser, encodePacket } from '../../../shared/protocol/codec.js';
 import { OPCODES } from '../../../shared/protocol/packetTypes.js';
 import { REPLICATION_TYPES, ISR_CONFIG, createReplicationMessage } from '../../../shared/protocol/clusterTypes.js';
 
@@ -103,6 +103,18 @@ class ReplicationSender {
       port: follower.port
     });
 
+    const parser = new PacketParser({
+      onPacket: (packet) => this._handleFollowerPacket(followerId, packet),
+      onError: (err) => {
+        this.logger.error('Follower packet parse error', {
+          followerId,
+          error: err.message
+        });
+        this.stats.replicationErrors += 1;
+      }
+    });
+    follower.parser = parser;
+
     socket.on('connect', () => {
       this.logger.info('Connected to follower', { followerId });
       follower.connected = true;
@@ -127,7 +139,15 @@ class ReplicationSender {
     });
 
     socket.on('data', (data) => {
-      this._handleFollowerResponse(followerId, data);
+      try {
+        parser.push(data);
+      } catch (err) {
+        this.logger.error('Failed to process follower data', {
+          followerId,
+          error: err.message
+        });
+        this.stats.replicationErrors += 1;
+      }
     });
 
     follower.socket = socket;
@@ -147,9 +167,13 @@ class ReplicationSender {
   }
 
   
-  _handleFollowerResponse(followerId, data) {
+  _handleFollowerPacket(followerId, packet) {
     try {
-      const response = JSON.parse(data.toString('utf8'));
+      if (packet.opcode !== OPCODES.REPLICATION_PACKET) {
+        return;
+      }
+
+      const response = JSON.parse(packet.payload.toString('utf8'));
       
       if (response.type === REPLICATION_TYPES.APPEND_ACK) {
         this._handleAck(followerId, response.data);
