@@ -80,9 +80,7 @@ class Quorum {
     return true;
   }
 
-  /**
-   * Get vote count for a candidate in a specific term
-   */
+  
   getVoteCount(term, candidateId) {
     const termVotes = this.votes.get(term);
     if (!termVotes) {
