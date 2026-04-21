@@ -24,12 +24,12 @@ class Heartbeat {
     
     this.interval = opts.interval || HEARTBEAT_INTERVALS.BROKER_TO_CONTROLLER;
 
-    // Dependencies
+    
     this.brokerState = opts.brokerState;
     this.replicationSender = opts.replicationSender;
     this.followerSync = opts.followerSync;
 
-    // Current node state
+    
     this.nodeState = NODE_STATES.FOLLOWER;
     this.isLeader = false;
 
@@ -75,9 +75,7 @@ class Heartbeat {
     }
   }
 
-  /**
-   * Update node state (follower/leader)
-   */
+  
   updateState(newState) {
     if (this.nodeState !== newState) {
       this.logger.info('Node state changed', {
@@ -88,7 +86,7 @@ class Heartbeat {
       this.nodeState = newState;
       this.isLeader = (newState === NODE_STATES.LEADER);
 
-      // Send immediate heartbeat on state change
+      
       this._sendHeartbeat();
     }
   }
@@ -155,7 +153,7 @@ class Heartbeat {
         offset: commitLog.getLatestOffset()
       };
 
-      // Add replication lag if follower
+      
       if (!this.isLeader && this.followerSync) {
         const lag = this.followerSync.getReplicationLag(topicName);
         if (lag >= 0) {
@@ -166,7 +164,7 @@ class Heartbeat {
       metadata.topics.push(topicData);
     }
 
-    // Add replication statistics if leader
+    
     if (this.isLeader && this.replicationSender) {
       metadata.replication = this.replicationSender.getStats();
     }
@@ -174,9 +172,7 @@ class Heartbeat {
     return metadata;
   }
 
-  /**
-   * Get heartbeat statistics
-   */
+  
   getStats() {
     return {
       ...this.stats,
@@ -185,9 +181,7 @@ class Heartbeat {
     };
   }
 
-  /**
-   * Stop sending heartbeats
-   */
+  
   close() {
     if (this.closed) {
       return;
