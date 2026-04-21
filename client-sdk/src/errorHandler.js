@@ -2,9 +2,7 @@
 
 import { Logger } from '../../shared/utils/logger.js';
 
-/**
- * Retry policy for transient failures
- */
+
 class RetryPolicy {
   constructor(options) {
     const opts = options || {};
@@ -15,7 +13,7 @@ class RetryPolicy {
     this.backoffMultiplier = opts.backoffMultiplier || 2;
     this.jitterFactor = opts.jitterFactor || 0.1;
     
-    // Retryable error codes
+    
     this.retryableErrors = new Set(opts.retryableErrors || [
       'ECONNREFUSED',
       'ECONNRESET',
@@ -29,25 +27,21 @@ class RetryPolicy {
     this.logger = opts.logger || new Logger({ name: 'retryPolicy' });
   }
 
-  /**
-   * Check if error is retryable
-   */
+  
   isRetryable(error) {
     if (!error) return false;
 
-    // Check error code
+    
     if (error.code && this.retryableErrors.has(error.code)) {
       return true;
     }
 
-    // Check error message
+    
     const message = error.message || '';
     return this.retryableErrors.has(message);
   }
 
-  /**
-   * Execute function with retry
-   */
+  
   async executeWithRetry(fn, context) {
     let lastError;
 
@@ -77,9 +71,7 @@ class RetryPolicy {
     throw lastError;
   }
 
-  /**
-   * Calculate exponential backoff with jitter
-   */
+  
   _calculateDelay(attempt) {
     const exponentialDelay = this.initialDelayMs * Math.pow(this.backoffMultiplier, attempt);
     const cappedDelay = Math.min(exponentialDelay, this.maxDelayMs);
@@ -88,9 +80,7 @@ class RetryPolicy {
   }
 }
 
-/**
- * Error handler with categorization and metrics
- */
+
 class ErrorHandler {
   constructor(options) {
     const opts = options || {};
@@ -98,7 +88,7 @@ class ErrorHandler {
     this.logger = opts.logger || new Logger({ name: 'errorHandler' });
     this.retryPolicy = opts.retryPolicy || new RetryPolicy(opts);
 
-    // Error categories
+    
     this.errorCategories = {
       NETWORK: 'NETWORK',
       TIMEOUT: 'TIMEOUT',
@@ -107,7 +97,7 @@ class ErrorHandler {
       CIRCUIT_BREAK: 'CIRCUIT_BREAK'
     };
 
-    // Metrics
+    
     this.metrics = {
       totalErrors: 0,
       errorsByCategory: {},
@@ -120,9 +110,7 @@ class ErrorHandler {
     }
   }
 
-  /**
-   * Categorize error
-   */
+  
   categorizeError(error) {
     const message = error.message || '';
     const code = error.code || '';
@@ -143,9 +131,7 @@ class ErrorHandler {
     return this.errorCategories.UNKNOWN;
   }
 
-  /**
-   * Record error
-   */
+  
   recordError(error, context) {
     const category = this.categorizeError(error);
 
@@ -166,9 +152,7 @@ class ErrorHandler {
     };
   }
 
-  /**
-   * Handle error with retry
-   */
+  
   async handleWithRetry(fn, context) {
     try {
       return await this.retryPolicy.executeWithRetry(fn, context);
@@ -178,9 +162,7 @@ class ErrorHandler {
     }
   }
 
-  /**
-   * Format error for logging
-   */
+  
   formatError(error, context) {
     return {
       category: this.categorizeError(error),
@@ -192,9 +174,7 @@ class ErrorHandler {
     };
   }
 
-  /**
-   * Get metrics
-   */
+  
   getMetrics() {
     return {
       ...this.metrics,
@@ -202,9 +182,7 @@ class ErrorHandler {
     };
   }
 
-  /**
-   * Reset metrics
-   */
+  
   resetMetrics() {
     this.metrics.totalErrors = 0;
     this.metrics.retriedErrors = 0;
