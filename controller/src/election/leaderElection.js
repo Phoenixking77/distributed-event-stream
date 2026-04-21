@@ -40,7 +40,7 @@ class LeaderElection {
       onSendHeartbeat: () => this._getHeartbeatData()
     });
 
-    // Force this controller to be leader when configured (useful for single static leader)
+    
     this.forceLeader = !!options.forceLeader;
     this.electionTimeoutBase = options.electionTimeoutBase || HEARTBEAT_INTERVALS.ELECTION_TIMEOUT_BASE;
     this.electionTimeoutRange = options.electionTimeoutRange || HEARTBEAT_INTERVALS.ELECTION_TIMEOUT_RANGE;
@@ -50,9 +50,7 @@ class LeaderElection {
     }
   }
 
-  /**
-   * Initialize UDP socket for election communication
-   */
+  
   async initialize() {
     if (this.socket) {
       return;
@@ -105,9 +103,7 @@ class LeaderElection {
     });
   }
 
-  /**
-   * Set peer controllers for election communication
-   */
+  
   setPeers(peers) {
     this.peers = peers || [];
     this.heartbeatSender.setPeers(this.peers);
@@ -440,7 +436,7 @@ class LeaderElection {
       return;
     }
 
-    // Announce leadership to all peer controllers
+    
     const message = createElectionMessage(
       ELECTION_TYPES.LEADER_ANNOUNCEMENT,
       this.currentTerm,
@@ -533,9 +529,7 @@ class LeaderElection {
     }
   }
 
-  /**
-   * Get current heartbeat data for leader to send to followers
-   */
+  
   _getHeartbeatData() {
     return {
       term: this.currentTerm,
@@ -544,9 +538,7 @@ class LeaderElection {
     };
   }
 
-  /**
-   * Handle incoming election message from peer controller
-   */
+  
   _handleElectionMessage(buffer, rinfo) {
     if (this.closed) {
       return;
@@ -572,7 +564,7 @@ class LeaderElection {
       if (type === ELECTION_TYPES.VOTE_REQUEST) {
         const voteGranted = this.handleVoteRequest(candidateId, term, message.lastLogIndex, message.lastLogTerm);
         
-        // Send vote response
+        
         const response = createElectionMessage(
           ELECTION_TYPES.VOTE_RESPONSE,
           this.currentTerm,
