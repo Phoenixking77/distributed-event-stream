@@ -157,18 +157,20 @@ describe('Client SDK', () => {
 
     it('should sort by priority', async () => {
       const publisher = new BatchPublisher(mockClient);
-      const messages = [];
+      const publishOrder = [];
 
-      publisher.add = async () => {
-        messages.push(...publisher.queue);
-        publisher.queue = [];
+      mockClient.publish = async (topic, message) => {
+        publishOrder.push(message.id);
+        return { topic, offset: publishOrder.length, timestamp: Date.now() };
       };
 
-      await publisher.add('topic', { id: 1 }, { priority: 1 });
-      await publisher.add('topic', { id: 2 }, { priority: 10 });
-      await publisher.add('topic', { id: 3 }, { priority: 5 });
+      await publisher._publishBatch('topic', [
+        { topic: 'topic', message: { id: 1 }, priority: 1, timestamp: 1 },
+        { topic: 'topic', message: { id: 2 }, priority: 10, timestamp: 2 },
+        { topic: 'topic', message: { id: 3 }, priority: 5, timestamp: 3 }
+      ]);
 
-      assert.strictEqual(messages[0].priority, 10); // Highest priority first
+      assert.deepStrictEqual(publishOrder, [2, 3, 1]);
     });
   });
 
