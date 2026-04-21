@@ -2,10 +2,7 @@
 
 import { Logger } from '../../shared/utils/logger.js';
 
-/**
- * Batch publisher for high-throughput scenarios
- * Accumulates messages and sends in batches for efficiency
- */
+
 class BatchPublisher {
   constructor(client, options) {
     if (!client) {
@@ -17,17 +14,17 @@ class BatchPublisher {
     this.client = client;
     this.logger = opts.logger || new Logger({ name: 'batchPublisher' });
 
-    // Batch settings
+    
     this.batchSize = opts.batchSize || 100;
     this.batchTimeoutMs = opts.batchTimeoutMs || 1000;
     this.compression = opts.compression || 'none';
 
-    // Queue
+    
     this.queue = [];
     this.batchTimer = null;
     this.drainPromises = [];
 
-    // Metrics
+    
     this.metrics = {
       batchesPublished: 0,
       messagesPublished: 0,
@@ -36,13 +33,7 @@ class BatchPublisher {
     };
   }
 
-  /**
-   * Add message to batch
-   * @param {string} topic
-   * @param {*} message
-   * @param {Object} options - { key?, priority? }
-   * @returns {Promise<void>}
-   */
+  
   async add(topic, message, options) {
     if (!topic) {
       throw new Error('Topic required');
@@ -58,12 +49,12 @@ class BatchPublisher {
       priority: opts.priority || 0
     });
 
-    // Trigger publish if batch is full
+    
     if (this.queue.length >= this.batchSize) {
       return this._flush();
     }
 
-    // Start timer if first message
+    
     if (this.queue.length === 1) {
       this._startBatchTimer();
     }
@@ -71,9 +62,7 @@ class BatchPublisher {
     return Promise.resolve();
   }
 
-  /**
-   * Flush pending messages immediately
-   */
+  
   async _flush() {
     if (this.queue.length === 0) {
       return;
@@ -81,7 +70,7 @@ class BatchPublisher {
 
     this._stopBatchTimer();
 
-    // Group by topic for efficiency
+    
     const byTopic = new Map();
     for (const item of this.queue) {
       if (!byTopic.has(item.topic)) {
@@ -99,12 +88,10 @@ class BatchPublisher {
     await Promise.all(promises);
   }
 
-  /**
-   * Publish a batch of messages for a topic
-   */
+  
   async _publishBatch(topic, items) {
     try {
-      // Sort by priority (descending) then by timestamp
+      
       items.sort((a, b) => {
         if (a.priority !== b.priority) {
           return b.priority - a.priority;
@@ -112,7 +99,7 @@ class BatchPublisher {
         return a.timestamp - b.timestamp;
       });
 
-      // Publish in parallel with backpressure
+      
       const concurrency = 10;
       for (let i = 0; i < items.length; i += concurrency) {
         const batch = items.slice(i, i + concurrency);
@@ -144,9 +131,7 @@ class BatchPublisher {
     }
   }
 
-  /**
-   * Start batch timeout timer
-   */
+  
   _startBatchTimer() {
     if (this.batchTimer) {
       return;
@@ -160,9 +145,7 @@ class BatchPublisher {
     }, this.batchTimeoutMs);
   }
 
-  /**
-   * Stop batch timer
-   */
+  
   _stopBatchTimer() {
     if (this.batchTimer) {
       clearTimeout(this.batchTimer);
@@ -170,9 +153,7 @@ class BatchPublisher {
     }
   }
 
-  /**
-   * Wait for all pending messages to be published
-   */
+  
   async drain() {
     if (this.queue.length === 0 && !this.batchTimer) {
       return;
@@ -181,14 +162,12 @@ class BatchPublisher {
     return new Promise((resolve) => {
       this._flush().then(resolve).catch((err) => {
         this.logger.error('Drain failed', err);
-        resolve(); // Resolve anyway
+        resolve(); 
       });
     });
   }
 
-  /**
-   * Get metrics
-   */
+  
   getMetrics() {
     return {
       ...this.metrics,
@@ -196,9 +175,7 @@ class BatchPublisher {
     };
   }
 
-  /**
-   * Cleanup
-   */
+  
   async close() {
     await this.drain();
     this._stopBatchTimer();
