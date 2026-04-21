@@ -262,7 +262,8 @@ class TopicManager {
       return false;
     }
 
-    return topic.isr.length >= this.minIsr;
+    const requiredIsr = topic.followers.length === 0 ? 1 : this.minIsr;
+    return topic.isr.length >= requiredIsr;
   }
 
   
@@ -275,7 +276,8 @@ class TopicManager {
     };
 
     for (const topic of this.topics.values()) {
-      const hasSufficientISR = topic.isr.length >= this.minIsr;
+      const requiredIsr = topic.followers.length === 0 ? 1 : this.minIsr;
+      const hasSufficientISR = topic.isr.length >= requiredIsr;
       if (!hasSufficientISR) {
         stats.underReplicatedTopics += 1;
       }
