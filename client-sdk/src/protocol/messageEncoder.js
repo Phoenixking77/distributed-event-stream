@@ -10,12 +10,7 @@ const inflate = promisify(zlib.inflate);
 
 
 class MessageEncoder {
-  /**
-   * Encode and optionally compress a message
-   * @param {*} message - Message to encode
-   * @param {Object} options - { compression: 'gzip'|'deflate'|'snappy'|'none', key?, headers? }
-   * @returns {Promise<Buffer>}
-   */
+  
   static async encode(message, options) {
     const opts = options || {};
     const compression = opts.compression || 'none';
@@ -30,14 +25,14 @@ class MessageEncoder {
     }
 
     let compressed = payload;
-    let compressionType = 0; // 0 = none
+    let compressionType = 0; 
 
     if (compression !== 'none') {
       compressed = await MessageEncoder._compress(payload, compression);
       compressionType = MessageEncoder._getCompressionCode(compression);
     }
 
-    // Frame format: [compression:1][key_len:4][key:*][payload_len:4][payload:*]
+    
     const keyBuffer = opts.key ? Buffer.from(opts.key, 'utf8') : Buffer.alloc(0);
     const keyLen = keyBuffer.length;
     
@@ -63,18 +58,13 @@ class MessageEncoder {
     return frame;
   }
 
-  /**
-   * Batch encode multiple messages
-   * @param {Array} messages
-   * @param {Object} options
-   * @returns {Promise<Buffer>}
-   */
+  
   static async encodeBatch(messages, options) {
     const encoded = await Promise.all(
       messages.map(msg => MessageEncoder.encode(msg, options))
     );
 
-    // Batch format: [count:4][msg1_len:4][msg1:*][msg2_len:4][msg2:*]...
+    
     const totalSize = 4 + encoded.reduce((sum, buf) => sum + 4 + buf.length, 0);
     const batch = Buffer.allocUnsafe(totalSize);
     
@@ -99,7 +89,7 @@ class MessageEncoder {
       case 'deflate':
         return deflate(payload);
       case 'snappy':
-        // Would use snappy library if available
+        
         return payload;
       default:
         return payload;
@@ -127,15 +117,9 @@ class MessageEncoder {
   }
 }
 
-/**
- * Message decoder with decompression support
- */
+
 class MessageDecoder {
-  /**
-   * Decode and decompress a message
-   * @param {Buffer} frame
-   * @returns {Promise<Object>} { message, key, compression, decompressed }
-   */
+  
   static async decode(frame) {
     if (!Buffer.isBuffer(frame) || frame.length < 9) {
       throw new Error('Invalid frame: too small');
@@ -175,7 +159,7 @@ class MessageDecoder {
       wasCompressed = true;
     }
     
-    // Try to parse as JSON
+    
     let message;
     try {
       message = JSON.parse(decompressed.toString('utf8'));
@@ -191,11 +175,7 @@ class MessageDecoder {
     };
   }
 
-  /**
-   * Batch decode multiple messages
-   * @param {Buffer} batch
-   * @returns {Promise<Array>}
-   */
+  
   static async decodeBatch(batch) {
     if (!Buffer.isBuffer(batch) || batch.length < 4) {
       throw new Error('Invalid batch: too small');
@@ -235,7 +215,7 @@ class MessageDecoder {
       case 'deflate':
         return inflate(payload);
       case 'snappy':
-        // Would use snappy library
+        
         return payload;
       default:
         return payload;
