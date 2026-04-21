@@ -1,6 +1,8 @@
 'use strict';
 
 import { Logger } from '../../../shared/utils/logger.js';
+import { encodePacket } from '../../../shared/protocol/codec.js';
+import { OPCODES } from '../../../shared/protocol/packetTypes.js';
 import { REPLICATION_TYPES, createReplicationMessage } from '../../../shared/protocol/clusterTypes.js';
 
 
@@ -156,10 +158,14 @@ class FollowerSync {
       timestamp: Date.now()
     });
 
-    const payload = Buffer.from(JSON.stringify(ack), 'utf8');
+    const packet = encodePacket({
+      opcode: OPCODES.REPLICATION_PACKET,
+      payload: ack,
+      timestamp: ack.timestamp
+    });
 
     try {
-      socket.write(payload, (err) => {
+      socket.write(packet, (err) => {
         if (err) {
           this.logger.error('Failed to send ACK', {
             topic,
