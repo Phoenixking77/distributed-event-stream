@@ -3,14 +3,7 @@
 import { Logger } from '../../../shared/utils/logger.js';
 import { REPLICATION_TYPES, createReplicationMessage } from '../../../shared/protocol/clusterTypes.js';
 
-/**
- * FollowerSync handles receiving and applying replicated log entries from the leader.
- * Implements:
- * - Log entry validation
- * - Offset ordering verification
- * - Acknowledgment sending
- * - Lag tracking
- */
+
 class FollowerSync {
   constructor(options) {
     const opts = options || {};
@@ -26,11 +19,11 @@ class FollowerSync {
       throw new Error('brokerState required');
     }
 
-    // Current leader connection
+    
     this.leaderSocket = null;
     this.leaderId = null;
 
-    // Replication state per topic: topicName -> { lastOffset, lastApplied }
+    
     this.topicState = new Map();
 
     this.stats = {
@@ -44,9 +37,7 @@ class FollowerSync {
     this.closed = false;
   }
 
-  /**
-   * Handle replication message from leader
-   */
+  
   handleReplicationMessage(message, socket, leaderId) {
     if (this.closed) {
       return;
@@ -72,9 +63,7 @@ class FollowerSync {
     }
   }
 
-  /**
-   * Handle append entries request
-   */
+  
   async _handleAppendEntries(data, socket) {
     const { leaderId, topic, entries } = data;
 
@@ -92,14 +81,14 @@ class FollowerSync {
     this.stats.totalEntriesReceived += entries.length;
 
     try {
-      // Get or create topic
+      
       const commitLog = await this.brokerState.getOrCreateTopic(topic);
       const topicState = this._getOrCreateTopicState(topic);
 
       for (const entry of entries) {
         const { offset, message, timestamp } = entry;
 
-        // Validate offset ordering
+        
         if (topicState.lastOffset >= 0 && offset <= topicState.lastOffset) {
           this.logger.warn('Out of order entry received', {
             topic,
@@ -110,10 +99,10 @@ class FollowerSync {
           continue;
         }
 
-        // Decode message from base64
+        
         const messageBuffer = Buffer.from(message, 'base64');
 
-        // Apply to commit log
+        
         try {
           const result = commitLog.append(messageBuffer);
           
@@ -137,7 +126,7 @@ class FollowerSync {
         }
       }
 
-      // Send acknowledgment
+      
       if (entries.length > 0) {
         const lastEntry = entries[entries.length - 1];
         this._sendAck(socket, topic, lastEntry.offset);
@@ -152,17 +141,13 @@ class FollowerSync {
     }
   }
 
-  /**
-   * Handle heartbeat from leader
-   */
+  
   _handleHeartbeat(data, socket) {
     this.logger.trace('Replication heartbeat received', data);
-    // Heartbeat acknowledged implicitly by TCP connection
+    
   }
 
-  /**
-   * Send acknowledgment to leader
-   */
+  
   _sendAck(socket, topic, offset) {
     const ack = createReplicationMessage(REPLICATION_TYPES.APPEND_ACK, {
       followerId: this.brokerId,
@@ -194,9 +179,7 @@ class FollowerSync {
     }
   }
 
-  /**
-   * Get or create topic state
-   */
+  
   _getOrCreateTopicState(topic) {
     if (!this.topicState.has(topic)) {
       this.topicState.set(topic, {
@@ -207,9 +190,7 @@ class FollowerSync {
     return this.topicState.get(topic);
   }
 
-  /**
-   * Get replication lag for a topic
-   */
+  
   getReplicationLag(topic) {
     const state = this.topicState.get(topic);
     if (!state) {
@@ -219,9 +200,7 @@ class FollowerSync {
     return Date.now() - state.lastApplied;
   }
 
-  /**
-   * Get follower statistics
-   */
+  
   getStats() {
     const topics = [];
 
@@ -241,18 +220,14 @@ class FollowerSync {
     };
   }
 
-  /**
-   * Reset leader connection
-   */
+  
   resetLeader() {
     this.logger.info('Resetting leader connection', { oldLeader: this.leaderId });
     this.leaderSocket = null;
     this.leaderId = null;
   }
 
-  /**
-   * Close follower sync
-   */
+  
   close() {
     if (this.closed) {
       return;
