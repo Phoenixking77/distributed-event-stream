@@ -16,6 +16,9 @@ class Broker {
     this.config = opts.config || loadConfig();
     this.logger = opts.logger || new Logger({ name: 'broker' });
 
+    this.config.controller = this.config.controller || {};
+    this.config.broker = this.config.broker || {};
+
     this.brokerId = opts.brokerId || `broker-${Date.now()}`;
     this.nodeState = NODE_STATES.FOLLOWER;
 
@@ -24,6 +27,13 @@ class Broker {
     } else if (process.env.BROKER_PORT) {
       this.config.broker.port = parseInt(process.env.BROKER_PORT, 10);
     }
+
+    this.config.broker.host = this.config.broker.host || '0.0.0.0';
+    this.config.broker.port = this.config.broker.port || 9092;
+    this.config.broker.dataDir = this.config.broker.dataDir || './data';
+    this.config.controller.host = this.config.controller.host || 'localhost';
+    this.config.controller.heartbeatPort = this.config.controller.heartbeatPort || 9091;
+    this.config.controller.httpPort = this.config.controller.httpPort || 8080;
 
     this.brokerState = new BrokerState({
       dataDir: this.config.broker.dataDir,
