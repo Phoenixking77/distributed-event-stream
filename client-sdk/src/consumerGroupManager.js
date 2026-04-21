@@ -2,10 +2,7 @@
 
 import { Logger } from '../../shared/utils/logger.js';
 
-/**
- * Consumer group manager
- * Tracks offset state and handles auto-commit logic
- */
+
 class ConsumerGroupManager {
   constructor(client, options) {
     if (!client) {
@@ -17,20 +14,20 @@ class ConsumerGroupManager {
     this.client = client;
     this.logger = opts.logger || new Logger({ name: 'consumerGroupManager' });
 
-    // Group settings
+    
     this.groupId = opts.groupId;
     this.enableAutoCommit = opts.enableAutoCommit !== false;
     this.autoCommitIntervalMs = opts.autoCommitIntervalMs || 5000;
-    this.autoOffsetReset = opts.autoOffsetReset || 'latest'; // 'earliest', 'latest', 'none'
+    this.autoOffsetReset = opts.autoOffsetReset || 'latest'; 
     this.maxPartitionBehind = opts.maxPartitionBehind || 1000;
 
-    // State
-    this.topics = new Map(); // topic -> { offset, lastCommitOffset, committed, paused }
+    
+    this.topics = new Map(); 
     this.commitTimer = null;
-    this.pendingOffsets = new Map(); // topic -> offset
+    this.pendingOffsets = new Map(); 
     this.rebalancing = false;
 
-    // Metrics
+    
     this.metrics = {
       offsetsCommitted: 0,
       offsetCommitErrors: 0,
@@ -39,9 +36,7 @@ class ConsumerGroupManager {
     };
   }
 
-  /**
-   * Register topic for consumer group
-   */
+  
   registerTopic(topic, startOffset) {
     if (this.topics.has(topic)) {
       return;
@@ -63,9 +58,7 @@ class ConsumerGroupManager {
     }
   }
 
-  /**
-   * Update offset when message is processed
-   */
+  
   updateOffset(topic, offset) {
     if (!this.topics.has(topic)) {
       this.registerTopic(topic, offset);
@@ -77,9 +70,7 @@ class ConsumerGroupManager {
     this.metrics.messagesProcessed++;
   }
 
-  /**
-   * Commit offset for topic
-   */
+  
   async commitOffset(topic, offset) {
     if (!this.groupId) {
       this.logger.warn('No group ID set, skipping offset commit');
@@ -87,7 +78,7 @@ class ConsumerGroupManager {
     }
 
     try {
-      // In a real scenario, this would persist to broker
+      
       const state = this.topics.get(topic);
       if (state) {
         state.lastCommitOffset = offset;
@@ -114,9 +105,7 @@ class ConsumerGroupManager {
     }
   }
 
-  /**
-   * Commit all pending offsets
-   */
+  
   async commitAll() {
     const commits = Array.from(this.pendingOffsets.entries()).map(
       ([topic, offset]) => this.commitOffset(topic, offset)
@@ -125,9 +114,7 @@ class ConsumerGroupManager {
     return Promise.all(commits);
   }
 
-  /**
-   * Seek to specific offset
-   */
+  
   seek(topic, offset) {
     if (!this.topics.has(topic)) {
       this.registerTopic(topic, offset);
@@ -141,9 +128,7 @@ class ConsumerGroupManager {
     this.logger.info('Seeked to offset', { topic, offset });
   }
 
-  /**
-   * Pause consuming from topic
-   */
+  
   pause(topic) {
     const state = this.topics.get(topic);
     if (state) {
@@ -152,9 +137,7 @@ class ConsumerGroupManager {
     }
   }
 
-  /**
-   * Resume consuming from topic
-   */
+  
   resume(topic) {
     const state = this.topics.get(topic);
     if (state) {
@@ -163,25 +146,19 @@ class ConsumerGroupManager {
     }
   }
 
-  /**
-   * Check if paused
-   */
+  
   isPaused(topic) {
     const state = this.topics.get(topic);
     return state ? state.paused : false;
   }
 
-  /**
-   * Get current offset for topic
-   */
+  
   getOffset(topic) {
     const state = this.topics.get(topic);
     return state ? state.offset : null;
   }
 
-  /**
-   * Get lag (difference between current and committed)
-   */
+  
   getLag(topic) {
     const state = this.topics.get(topic);
     if (!state) return null;
@@ -190,9 +167,7 @@ class ConsumerGroupManager {
     return lag > 0 ? lag : 0;
   }
 
-  /**
-   * Get consumer group state
-   */
+  
   getState() {
     const state = {};
     for (const [topic, data] of this.topics) {
@@ -207,9 +182,7 @@ class ConsumerGroupManager {
     return state;
   }
 
-  /**
-   * Start auto-commit timer
-   */
+  
   _startCommitTimer() {
     if (this.commitTimer) {
       return;
@@ -222,9 +195,7 @@ class ConsumerGroupManager {
     }, this.autoCommitIntervalMs);
   }
 
-  /**
-   * Stop auto-commit timer
-   */
+  
   _stopCommitTimer() {
     if (this.commitTimer) {
       clearInterval(this.commitTimer);
@@ -232,9 +203,7 @@ class ConsumerGroupManager {
     }
   }
 
-  /**
-   * Get metrics
-   */
+  
   getMetrics() {
     return {
       ...this.metrics,
@@ -244,9 +213,7 @@ class ConsumerGroupManager {
     };
   }
 
-  /**
-   * Cleanup
-   */
+  
   async close() {
     this._stopCommitTimer();
     await this.commitAll();
