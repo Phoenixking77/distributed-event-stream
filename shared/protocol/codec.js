@@ -110,7 +110,7 @@ function decodePacket(buffer) {
 
   return {
     opcode,
-    opcodeName: OPCODES[opcode] ? OPCODE_NAMES[opcode] : 'UNKNOWN',
+    opcodeName: OPCODE_NAMES[opcode] || 'UNKNOWN',
     timestamp: Number(timestamp),
     payload
   };
@@ -220,7 +220,7 @@ class PacketParser {
 
       this._emitPacket({
         opcode,
-        opcodeName: OPCODES[opcode] ? OPCODE_NAMES[opcode] : 'UNKNOWN',
+        opcodeName: OPCODE_NAMES[opcode] || 'UNKNOWN',
         timestamp: Number(timestamp),
         payload
       });

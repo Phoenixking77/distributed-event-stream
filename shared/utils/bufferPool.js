@@ -3,8 +3,8 @@
 class BufferPool {
   constructor(options) {
     const opts = options || {};
-    const size = opts.bufferSize || 64 * 1024;
-    const max = opts.maxPoolSize || 1024;
+    const size = opts.bufferSize ?? 64 * 1024;
+    const max = opts.maxPoolSize ?? 1024;
 
     if (!Number.isInteger(size) || size <= 0) {
       throw new Error('bufferSize must be a positive integer');
