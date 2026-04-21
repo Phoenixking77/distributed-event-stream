@@ -2,7 +2,7 @@
 
 import { connect as _connect } from 'net';
 import { EventEmitter } from 'events';
-import { PacketParser } from '../../../shared/protocol/codec.js';
+import { PacketParser, decodePacket, encodePacket } from '../../../shared/protocol/codec.js';
 import { Logger } from '../../../shared/utils/logger.js';
 
 class TcpClient extends EventEmitter {
@@ -57,6 +57,7 @@ class TcpClient extends EventEmitter {
       const onError = (err) => {
         if (connectTimer) clearTimeout(connectTimer);
         this.logger.error('Socket error', err);
+        this._failPendingRequests(err);
         this.emit('error', err);
         this.connecting = false;
         reject(err);
@@ -90,6 +91,7 @@ class TcpClient extends EventEmitter {
         this.logger.info('Connection closed');
         this.connected = false;
         this.connecting = false;
+        this._failPendingRequests(new Error('Connection closed'));
         this.emit('disconnect');
       });
     });
@@ -105,32 +107,36 @@ class TcpClient extends EventEmitter {
       const expectResponse = opts.expectResponse !== false;
       const timeout = opts.timeout || 5000;
 
+      let requestId = null;
+      let outboundPacket = packet;
+
       if (expectResponse) {
-        const requestId = this.nextRequestId++;
-        let timer = null;
+        requestId = this.nextRequestId++;
+        outboundPacket = this._attachRequestId(packet, requestId);
 
-        const handler = (responsePacket) => {
-          if (timer) {
-            clearTimeout(timer);
+        const timer = setTimeout(() => {
+          const pending = this.packetHandlers.get(requestId);
+          if (pending) {
+            this.packetHandlers.delete(requestId);
+            pending.reject(new Error('Request timeout'));
           }
-          this.packetHandlers.delete(requestId);
-          resolve(responsePacket);
-        };
-
-        this.packetHandlers.set(requestId, handler);
-
-        timer = setTimeout(() => {
-          this.packetHandlers.delete(requestId);
-          reject(new Error('Request timeout'));
         }, timeout);
 
-        packet._requestId = requestId;
+        this.packetHandlers.set(requestId, {
+          resolve,
+          reject,
+          timer
+        });
       }
 
-      this.socket.write(packet, (err) => {
+      this.socket.write(outboundPacket, (err) => {
         if (err) {
-          if (expectResponse && packet._requestId) {
-            this.packetHandlers.delete(packet._requestId);
+          if (expectResponse && requestId !== null) {
+            const pending = this.packetHandlers.get(requestId);
+            if (pending) {
+              clearTimeout(pending.timer);
+              this.packetHandlers.delete(requestId);
+            }
           }
           reject(err);
         } else if (!expectResponse) {
@@ -152,20 +158,85 @@ class TcpClient extends EventEmitter {
   }
 
   _onPacket(packet) {
-    
-    if (packet._requestId && this.packetHandlers.has(packet._requestId)) {
-      const handler = this.packetHandlers.get(packet._requestId);
-      handler(packet);
-    } else if (this.packetHandlers.size > 0) {
-      
-      const [requestId, handler] = this.packetHandlers.entries().next().value;
+    const requestId = this._extractRequestId(packet);
+
+    if (requestId !== null && this.packetHandlers.has(requestId)) {
+      const pending = this.packetHandlers.get(requestId);
+      clearTimeout(pending.timer);
       this.packetHandlers.delete(requestId);
-      handler(packet);
+      pending.resolve(packet);
+      return;
+    }
+
+    if (this.packetHandlers.size === 1) {
+      const [pendingRequestId, pending] = this.packetHandlers.entries().next().value;
+      clearTimeout(pending.timer);
+      this.packetHandlers.delete(pendingRequestId);
+      pending.resolve(packet);
+      return;
+    }
+
+    if (this.packetHandlers.size > 1) {
+      this.logger.warn('Received response without requestId and multiple requests are pending');
+    }
+  }
+
+  _attachRequestId(packet, requestId) {
+    try {
+      const decoded = decodePacket(packet);
+      const payloadText = decoded.payload.toString('utf8');
+
+      if (!payloadText) {
+        return packet;
+      }
+
+      const payload = JSON.parse(payloadText);
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+        return packet;
+      }
+
+      return encodePacket({
+        opcode: decoded.opcode,
+        timestamp: decoded.timestamp,
+        payload: {
+          ...payload,
+          requestId
+        }
+      });
+    } catch {
+      return packet;
+    }
+  }
+
+  _extractRequestId(packet) {
+    try {
+      const payloadText = packet.payload.toString('utf8');
+      if (!payloadText) {
+        return null;
+      }
+
+      const payload = JSON.parse(payloadText);
+      if (payload && typeof payload === 'object' && !Array.isArray(payload) && payload.requestId !== undefined) {
+        return payload.requestId;
+      }
+    } catch {
+      return null;
+    }
+
+    return null;
+  }
+
+  _failPendingRequests(error) {
+    for (const [requestId, pending] of this.packetHandlers.entries()) {
+      clearTimeout(pending.timer);
+      pending.reject(error);
+      this.packetHandlers.delete(requestId);
     }
   }
 
   _onParseError(err) {
     this.logger.error('Parse error', err);
+    this._failPendingRequests(err);
   }
 
   disconnect() {
@@ -175,7 +246,7 @@ class TcpClient extends EventEmitter {
     }
     this.connected = false;
     this.connecting = false;
-    this.packetHandlers.clear();
+    this._failPendingRequests(new Error('Connection closed'));
   }
 }
 
