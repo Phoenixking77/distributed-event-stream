@@ -7,17 +7,17 @@ class ReconnectionManager {
   constructor(options) {
     const opts = options || {};
     
-    this.minDelay = opts.minDelay || 100;           // ms
-    this.maxDelay = opts.maxDelay || 30000;         // ms
+    this.minDelay = opts.minDelay || 100;           
+    this.maxDelay = opts.maxDelay || 30000;         
     this.backoffMultiplier = opts.backoffMultiplier || 2;
-    this.maxJitter = opts.maxJitter || 0.1;         // 10% jitter
+    this.maxJitter = opts.maxJitter || 0.1;         
     this.maxRetries = opts.maxRetries || 10;
     this.failureThreshold = opts.failureThreshold || 5;
-    this.resetTimeout = opts.resetTimeout || 60000; // ms
+    this.resetTimeout = opts.resetTimeout || 60000; 
     
     this.logger = opts.logger || new Logger({ name: 'reconnectManager' });
     
-    // State
+    
     this.retryCount = 0;
     this.currentDelay = this.minDelay;
     this.lastFailureTime = null;
@@ -26,9 +26,7 @@ class ReconnectionManager {
     this.resetTimer = null;
   }
 
-  /**
-   * Get next retry delay with exponential backoff and jitter
-   */
+  
   getNextDelay() {
     if (this.circuitOpen) {
       return this.maxDelay;
