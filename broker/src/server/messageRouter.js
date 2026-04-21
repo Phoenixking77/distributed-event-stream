@@ -41,16 +41,18 @@ class MessageRouter {
       }
     } catch (err) {
       this.logger.error('Route handler error', err);
-      this._sendErrorResponse(socket, err.message);
+      this._sendErrorResponse(socket, err.message, err.requestId ?? null);
     }
   }
 
   async _handlePublish(payload, socket) {
     const data = JSON.parse(payload.toString('utf8'));
-    const { topic, message } = data;
+    const { topic, message, requestId = null } = data;
 
-    if (!topic || !message) {
-      throw new Error('Missing topic or message');
+    if (!topic || message === undefined || message === null) {
+      const error = new Error('Missing topic or message');
+      error.requestId = requestId;
+      throw error;
     }
 
     const commitLog = await this.brokerState.getOrCreateTopic(topic);
@@ -66,11 +68,12 @@ class MessageRouter {
       size: result.size
     });
 
-    const ackPayload = JSON.stringify({
+    const ackPayload = {
       topic: result.topic,
       offset: result.offset,
-      timestamp: result.timestamp
-    });
+      timestamp: result.timestamp,
+      requestId
+    };
 
     const ackPacket = encodePacket({
       opcode: OPCODES.ACK,
@@ -89,10 +92,12 @@ class MessageRouter {
 
   async _handleSubscribe(payload, socket) {
     const data = JSON.parse(payload.toString('utf8'));
-    const { topic, offset } = data;
+    const { topic, offset, requestId = null } = data;
 
     if (!topic) {
-      throw new Error('Missing topic');
+      const error = new Error('Missing topic');
+      error.requestId = requestId;
+      throw error;
     }
 
     const startOffset = typeof offset === 'number' ? offset : 0;
@@ -106,11 +111,12 @@ class MessageRouter {
       offset: startOffset
     });
 
-    const ackPayload = JSON.stringify({
+    const ackPayload = {
       subscriberId,
       topic,
-      offset: startOffset
-    });
+      offset: startOffset,
+      requestId
+    };
 
     const ackPacket = encodePacket({
       opcode: OPCODES.ACK,
@@ -123,9 +129,21 @@ class MessageRouter {
   }
 
   async _handleHeartbeat(payload, socket) {
+    let requestId = null;
+
+    try {
+      const data = JSON.parse(payload.toString('utf8'));
+      requestId = data.requestId ?? null;
+    } catch {
+      requestId = null;
+    }
+
     const ackPacket = encodePacket({
       opcode: OPCODES.ACK,
-      payload: JSON.stringify({ status: 'alive' })
+      payload: {
+        status: 'alive',
+        requestId
+      }
     });
     socket.write(ackPacket);
   }
@@ -198,11 +216,14 @@ class MessageRouter {
     }
   }
 
-  _sendErrorResponse(socket, errorMessage) {
+  _sendErrorResponse(socket, errorMessage, requestId = null) {
     try {
       const errorPacket = encodePacket({
         opcode: OPCODES.ACK,
-        payload: JSON.stringify({ error: errorMessage })
+        payload: {
+          error: errorMessage,
+          requestId
+        }
       });
       socket.write(errorPacket);
     } catch (err) {
