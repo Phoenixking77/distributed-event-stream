@@ -152,12 +152,12 @@ class TcpClient extends EventEmitter {
   }
 
   _onPacket(packet) {
-    // First, check if any handler is waiting for a response
+    
     if (packet._requestId && this.packetHandlers.has(packet._requestId)) {
       const handler = this.packetHandlers.get(packet._requestId);
       handler(packet);
     } else if (this.packetHandlers.size > 0) {
-      // If no request ID, give to the first waiting handler (FIFO)
+      
       const [requestId, handler] = this.packetHandlers.entries().next().value;
       this.packetHandlers.delete(requestId);
       handler(packet);
